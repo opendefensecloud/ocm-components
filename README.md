@@ -47,7 +47,7 @@ High Priority:
 - cert-manager (TLS certificate management)
 - External Secrets Operator
 - Prometheus Operator
-- NGINX Ingress Controller
+- Traefik Ingress Controller
 
 ## Repository Structure
 

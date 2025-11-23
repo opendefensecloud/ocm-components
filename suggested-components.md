@@ -55,9 +55,10 @@ This file tracks potential cloud-native applications that could be added as OCM 
   - Application performance monitoring
 
 ### Traefik Ingress Controller
+
 - **Source**: Keycloak component ingress (both configs)
 - **Reason**: Required for exposing Keycloak (and other services) externally. Modern, actively maintained ingress controller with built-in Let's Encrypt support and Gateway API compatibility.
-- **Official Project**: https://traefik.io/traefik/
+- **Official Project**: <https://traefik.io/traefik/>
 - **Helm Chart**: traefik/traefik
 - **License**: MIT
 - **Maturity**: CNCF Incubating project, widely adopted
