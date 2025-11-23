@@ -1,0 +1,112 @@
+---
+# Minimal CloudNativePG Cluster Configuration
+# This configuration provides a basic, working PostgreSQL cluster with minimal overhead.
+# Suitable for development, testing, and non-critical environments.
+#
+# Prerequisites:
+# 1. CloudNativePG operator installed
+# 2. Default storage class available
+#
+# Features:
+# - Single PostgreSQL instance
+# - 1GB storage
+# - PostgreSQL 17 (latest)
+# - No backups configured
+# - No monitoring
+# - Minimal resource allocation
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgres
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-minimal
+  namespace: postgres
+  labels:
+    app: postgres
+    environment: development
+spec:
+  # Single instance for development
+  instances: 1
+
+  # PostgreSQL 17 (latest stable)
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Primary update strategy - unsupervised for dev
+  primaryUpdateStrategy: unsupervised
+
+  # Storage configuration - minimal for development
+  storage:
+    size: 1Gi
+    # Uses default storage class
+
+  # PostgreSQL configuration - minimal settings
+  postgresql:
+    parameters:
+      # Minimal connections for development
+      max_connections: "50"
+      # Small shared buffers for minimal footprint
+      shared_buffers: "128MB"
+      # Minimal work memory
+      work_mem: "4MB"
+      # Log only errors and above
+      log_min_messages: "error"
+      # Faster checkpoints for development
+      checkpoint_timeout: "5min"
+
+  # Resource limits - minimal for development
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Bootstrap - empty database
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret:
+        name: app-user-secret
+
+  # Minimal managed configuration
+  managed:
+    roles:
+      - name: app
+        ensure: present
+        login: true
+        superuser: false
+
+  # No monitoring in minimal config
+  # To enable monitoring, add:
+  # monitoring:
+  #   podMonitorEnabled: true
+
+  # No backups in minimal config
+  # For production, enable backup configuration
+
+---
+# Application user credentials secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-user-secret
+  namespace: postgres
+type: kubernetes.io/basic-auth
+stringData:
+  username: app
+  password: changeme  # IMPORTANT: Change this in production!
+
+---
+# Service for application access (automatically created by operator, this is for reference)
+# The operator creates a service named: <cluster-name>-rw (read-write)
+# and <cluster-name>-r (read-only replicas)
+#
+# Connection string format:
+# postgresql://app:changeme@postgres-minimal-rw.postgres.svc:5432/app

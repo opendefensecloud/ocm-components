@@ -37,6 +37,30 @@ kubectl apply -f keycloak/operator/operator.yml
 kubectl apply -f keycloak/configs/minimal/keycloak.yml
 ```
 
+### CloudNativePG (v1.27.1)
+
+PostgreSQL Operator for Kubernetes
+
+- **Status**: ✅ Ready
+- **Operator**: Official CloudNativePG Operator
+- **License**: Apache 2.0
+- **CNCF**: Sandbox Project
+- **Configurations**:
+  - Minimal (single instance for dev/test)
+  - Production (HA with 3 replicas, backups, monitoring)
+- **Documentation**: [cloudnative-pg/README.md](cloudnative-pg/README.md)
+- **Features**: Streaming replication, automated backups, PITR, PgBouncer pooling
+
+Quick Start:
+
+```bash
+# Install operator
+kubectl apply --server-side -f cloudnative-pg/operator/cnpg-operator.yml
+
+# Deploy minimal cluster
+kubectl apply -f cloudnative-pg/configs/minimal/cluster.yaml
+```
+
 ## Suggested Components
 
 See [suggested-components.md](suggested-components.md) for a list of additional components that are candidates for inclusion in this monorepo based on common dependencies and use cases.

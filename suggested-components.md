@@ -2,19 +2,24 @@
 
 This file tracks potential cloud-native applications that could be added as OCM components to the monorepo. These suggestions are derived from dependencies and related applications discovered while packaging existing components.
 
-## High Priority
+## ✅ Completed Components
 
-### CloudNativePG
+### CloudNativePG - COMPLETED ✅
+
 - **Source**: Keycloak component dependency
-- **Reason**: Keycloak requires a PostgreSQL database. CloudNativePG provides a production-grade PostgreSQL operator for Kubernetes with HA, backup, and recovery features.
+- **Status**: Packaged as OCM component (v1.27.1)
 - **Official Project**: https://cloudnative-pg.io/
 - **Operator**: Yes (official CloudNativePG operator)
 - **License**: Apache 2.0
-- **Maturity**: CNCF Sandbox project, widely adopted
+- **Maturity**: CNCF Sandbox project, Level V Auto Pilot operator
+- **Component**: [cloudnative-pg/](cloudnative-pg/)
 - **Use Cases**:
   - Database for Keycloak
   - General PostgreSQL database workloads
   - Microservices requiring PostgreSQL
+  - HA database clusters with automated backups
+
+## High Priority
 
 ### cert-manager
 - **Source**: Keycloak component dependency (production config)

@@ -1,0 +1,397 @@
+---
+# Production-Grade CloudNativePG Cluster Configuration
+# This configuration provides a highly available, production-ready PostgreSQL cluster
+# with automated backups, monitoring, connection pooling, and proper resource allocation.
+#
+# Prerequisites:
+# 1. CloudNativePG operator installed
+# 2. S3-compatible object storage for backups (or configure volumeSnapshot)
+# 3. Prometheus Operator for monitoring (optional but recommended)
+# 4. StorageClass with fast storage (SSD recommended)
+# 5. Secret with S3 credentials (see below)
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgres-production
+
+---
+# S3 credentials for backups (use External Secrets Operator in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s3-backup-creds
+  namespace: postgres-production
+type: Opaque
+stringData:
+  ACCESS_KEY_ID: ""  # Set via external secrets
+  SECRET_ACCESS_KEY: ""  # Set via external secrets
+  REGION: "us-east-1"
+
+---
+# Application user credentials (use External Secrets Operator in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-user-secret
+  namespace: postgres-production
+type: kubernetes.io/basic-auth
+stringData:
+  username: app
+  password: ""  # Set via external secrets - use strong password!
+
+---
+# Production PostgreSQL Cluster with High Availability
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-ha
+  namespace: postgres-production
+  labels:
+    app: postgres
+    environment: production
+    tier: database
+spec:
+  # High Availability: 3 instances for fault tolerance
+  instances: 3
+
+  # PostgreSQL 17 (production version)
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Supervised updates - require manual approval for primary switchover
+  primaryUpdateStrategy: supervised
+
+  # Replica configuration
+  minSyncReplicas: 1
+  maxSyncReplicas: 2
+
+  # Storage configuration - production-grade
+  storage:
+    size: 100Gi
+    storageClass: fast-ssd  # Replace with your fast storage class
+
+  # Separate WAL storage for better performance
+  walStorage:
+    size: 20Gi
+    storageClass: fast-ssd
+
+  # PostgreSQL configuration - production tuned
+  postgresql:
+    parameters:
+      # Connection settings
+      max_connections: "200"
+
+      # Memory settings (tune based on available memory)
+      shared_buffers: "2GB"
+      effective_cache_size: "6GB"
+      work_mem: "16MB"
+      maintenance_work_mem: "512MB"
+
+      # WAL settings
+      wal_buffers: "16MB"
+      max_wal_size: "4GB"
+      min_wal_size: "1GB"
+      wal_level: "replica"
+
+      # Checkpoint settings
+      checkpoint_completion_target: "0.9"
+      checkpoint_timeout: "15min"
+
+      # Query planner
+      random_page_cost: "1.1"  # For SSD storage
+      effective_io_concurrency: "200"  # For SSD
+
+      # Logging
+      log_min_duration_statement: "1000"  # Log queries > 1s
+      log_checkpoints: "on"
+      log_connections: "on"
+      log_disconnections: "on"
+      log_lock_waits: "on"
+      log_temp_files: "0"
+
+      # Autovacuum tuning
+      autovacuum_max_workers: "4"
+      autovacuum_naptime: "30s"
+
+  # Resource allocation - production sizing
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+
+  # Bootstrap configuration
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret:
+        name: app-user-secret
+      # Enable additional extensions
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_stat_statements
+        - CREATE EXTENSION IF NOT EXISTS pgcrypto
+        - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+
+  # Managed roles and databases
+  managed:
+    roles:
+      - name: app
+        ensure: present
+        login: true
+        superuser: false
+        connectionLimit: -1
+      - name: readonly
+        ensure: present
+        login: true
+        superuser: false
+        connectionLimit: 50
+
+  # Backup configuration - S3
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://my-backup-bucket/postgres-ha  # Replace with your S3 bucket
+      endpointURL: https://s3.us-east-1.amazonaws.com  # Or your S3-compatible endpoint
+      s3Credentials:
+        accessKeyId:
+          name: s3-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: s3-backup-creds
+          key: SECRET_ACCESS_KEY
+        region:
+          name: s3-backup-creds
+          key: REGION
+
+      # WAL archiving configuration
+      wal:
+        compression: gzip
+        maxParallel: 8
+        encryption: AES256
+
+      # Base backup configuration
+      data:
+        compression: gzip
+        jobs: 4
+        encryption: AES256
+
+      # Server-side encryption
+      serverName: postgres-ha-cluster
+
+    # Volume snapshot backups (alternative/additional to object store)
+    volumeSnapshot:
+      className: csi-snapclass  # Replace with your VolumeSnapshotClass
+
+  # Monitoring configuration
+  monitoring:
+    podMonitorEnabled: true
+    customQueriesConfigMap:
+      - name: postgres-monitoring-queries
+        key: queries.yaml
+
+  # Connection pooling with PgBouncer
+  enablePgBouncer: true
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"
+      max_db_connections: "100"
+      max_user_connections: "100"
+
+  # Affinity rules for high availability
+  affinity:
+    topologyKey: topology.kubernetes.io/zone  # Spread across availability zones
+    podAntiAffinityType: required  # Never schedule pods on same node
+    additionalPodAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: postgres
+          topologyKey: kubernetes.io/hostname
+
+  # Node selector (optional - use if you have dedicated database nodes)
+  # nodeSelector:
+  #   workload-type: database
+
+  # Security context
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Maintenance window configuration
+  nodeMaintenanceWindow:
+    inProgress: false
+    reusePVC: true
+
+  # Certificate configuration
+  certificates:
+    serverTLSSecret: postgres-server-cert
+    serverCASecret: postgres-ca-cert
+    clientCASecret: postgres-ca-cert
+    replicationTLSSecret: postgres-replication-cert
+
+---
+# Scheduled backup configuration
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-ha-backup
+  namespace: postgres-production
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  cluster:
+    name: postgres-ha
+  backupOwnerReference: self
+  immediate: false  # Don't trigger backup on creation
+  target: primary  # Backup from primary (or use 'prefer-standby')
+
+---
+# Custom monitoring queries ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-monitoring-queries
+  namespace: postgres-production
+data:
+  queries.yaml: |
+    # Custom Prometheus queries for CloudNativePG
+    - name: "pg_replication_lag"
+      description: "PostgreSQL replication lag in seconds"
+      query: |
+        SELECT
+          application_name,
+          EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::INT as lag_seconds
+        FROM pg_stat_replication
+      target_databases:
+        - "*"
+      metrics:
+        - lag_seconds:
+            usage: "GAUGE"
+            description: "Replication lag in seconds"
+
+    - name: "pg_database_size"
+      description: "PostgreSQL database sizes"
+      query: |
+        SELECT
+          datname,
+          pg_database_size(datname) as size_bytes
+        FROM pg_database
+        WHERE datname NOT IN ('template0', 'template1', 'postgres')
+      metrics:
+        - size_bytes:
+            usage: "GAUGE"
+            description: "Database size in bytes"
+
+    - name: "pg_slow_queries"
+      description: "Count of slow queries"
+      query: |
+        SELECT
+          count(*) as slow_queries
+        FROM pg_stat_statements
+        WHERE mean_exec_time > 1000
+      target_databases:
+        - "*"
+      metrics:
+        - slow_queries:
+            usage: "GAUGE"
+            description: "Number of queries with mean execution time > 1s"
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-ha-pdb
+  namespace: postgres-production
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      cnpg.io/cluster: postgres-ha
+
+---
+# NetworkPolicy for database security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ha-netpol
+  namespace: postgres-production
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: postgres-ha
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from application namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: application  # Replace with your app namespace label
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow inter-pod communication for replication
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: postgres-ha
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9187  # Metrics port
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow S3 backup egress
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow inter-pod communication
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: postgres-ha
+
+---
+# Service annotations for external access (optional)
+# Uncomment and configure if you need external database access
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: postgres-ha-external
+#   namespace: postgres-production
+#   annotations:
+#     service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+#     service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     cnpg.io/cluster: postgres-ha
+#     role: primary
+#   ports:
+#     - port: 5432
+#       targetPort: 5432
+#       protocol: TCP

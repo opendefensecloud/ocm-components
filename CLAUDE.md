@@ -39,7 +39,9 @@ This repository is in its early stages. When adding new components:
 - Consider existing components for dependency fulfillment before adding duplicates
 - Ensure every component has a minimal default config that just works with minimal overhead and in as many environments as possible
 - Ensure every component has an additional production grade config which fully utilizes all available high-availability settings and distributed setup modes of the respective application
-- Ensure every component has proper tests written and verified them to be working. This includes deploying the applications to a local kind cluster
+- Ensure the ocm component exposes all available configuration parameters of the underlying helm charts and makes them configurable optionally in addition to the provided default configs for simple and production grade setups
+- Ensure every component has comprehensive tests written. This includes deploying the applications to a local kind cluster
+- Ensure the created tests are working 100% by running and debugging them extensively
 - Ensure the Readme.md in the project root is updated with the newly added component
 - A github release pipeline for each ocm component is created to create an offline package of the component as described here: https://ocm.software/docs/tutorials/transport-to-air-gapped-environments/#create-offline-package
 - Try to find packaged applications within the packaged component's helm chart that might make sense to add as components to the mono repo itself and suggest them in a suggested-components.md file in the project's root directory. Whenever possible try to use fully open source solutions rather than proprietary ones.
