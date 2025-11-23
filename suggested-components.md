@@ -54,17 +54,20 @@ This file tracks potential cloud-native applications that could be added as OCM 
   - Cluster-wide monitoring and alerting
   - Application performance monitoring
 
-### NGINX Ingress Controller
+### Traefik Ingress Controller
 - **Source**: Keycloak component ingress (both configs)
-- **Reason**: Required for exposing Keycloak (and other services) externally. One of the most popular ingress controllers for Kubernetes.
-- **Official Project**: https://kubernetes.github.io/ingress-nginx/
-- **Helm Chart**: ingress-nginx/ingress-nginx
-- **License**: Apache 2.0
-- **Maturity**: Kubernetes official project
+- **Reason**: Required for exposing Keycloak (and other services) externally. Modern, actively maintained ingress controller with built-in Let's Encrypt support and Gateway API compatibility.
+- **Official Project**: https://traefik.io/traefik/
+- **Helm Chart**: traefik/traefik
+- **License**: MIT
+- **Maturity**: CNCF Incubating project, widely adopted
+- **Note**: Recommended over kubernetes/ingress-nginx which is being retired in March 2026
 - **Use Cases**:
   - HTTP/HTTPS ingress for Keycloak
   - Load balancing and TLS termination
+  - Automatic Let's Encrypt integration
   - Ingress for all web-exposed services
+  - Gateway API support (future-proof)
 
 ## Low Priority (Consider for Future)
 
