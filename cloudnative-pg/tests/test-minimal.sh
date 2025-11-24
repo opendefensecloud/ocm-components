@@ -146,7 +146,7 @@ main() {
     # Test database connection
     log_info "Executing test query..."
     test_result=$(kubectl exec -n "$NAMESPACE" "$primary_pod" -- \
-      psql -U "$db_username" -d app -c "SELECT version();" 2>&1 || echo "FAILED")
+      env PGPASSWORD="$db_password" psql -h localhost -U "$db_username" -d app -c "SELECT version();" 2>&1 || echo "FAILED")
 
     if echo "$test_result" | grep -q "PostgreSQL"; then
         log_info "✓ PostgreSQL is accessible and responding!"
@@ -160,15 +160,15 @@ main() {
     # Test write operation
     log_info "Testing write operations..."
     kubectl exec -n "$NAMESPACE" "$primary_pod" -- \
-      psql -U "$db_username" -d app -c \
+      env PGPASSWORD="$db_password" psql -h localhost -U "$db_username" -d app -c \
       "CREATE TABLE IF NOT EXISTS test_table (id serial PRIMARY KEY, data text);" >/dev/null
 
     kubectl exec -n "$NAMESPACE" "$primary_pod" -- \
-      psql -U "$db_username" -d app -c \
+      env PGPASSWORD="$db_password" psql -h localhost -U "$db_username" -d app -c \
       "INSERT INTO test_table (data) VALUES ('test data');" >/dev/null
 
     row_count=$(kubectl exec -n "$NAMESPACE" "$primary_pod" -- \
-      psql -U "$db_username" -d app -t -c \
+      env PGPASSWORD="$db_password" psql -h localhost -U "$db_username" -d app -t -c \
       "SELECT COUNT(*) FROM test_table;" | tr -d ' ')
 
     if [ "$row_count" -ge 1 ]; then
