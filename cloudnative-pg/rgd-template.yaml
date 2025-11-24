@@ -1,0 +1,324 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGroup
+metadata:
+  name: cloudnative-pg-bootstrap
+  namespace: default
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: CloudNativePGBootstrap
+    spec:
+      # Component reference configuration
+      registry:
+        url:
+          type: string
+          default: "ghcr.io"
+      componentName:
+        type: string
+        default: "github.com/ocm/cloudnative-pg"
+      componentVersion:
+        type: string
+        default: "1.27.1"
+
+      # Deployment configuration
+      namespace:
+        type: string
+        default: "cnpg-system"
+      operatorNamespace:
+        type: string
+        default: "cnpg-system"
+
+      # Configuration profile selection
+      deploymentProfile:
+        type: string
+        enum: ["minimal", "production"]
+        default: "minimal"
+
+      # PostgreSQL cluster configuration
+      clusterName:
+        type: string
+        default: "postgres-cluster"
+      clusterNamespace:
+        type: string
+        default: "postgres"
+      instances:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 1
+      postgresVersion:
+        type: string
+        enum: ["15", "16", "17"]
+        default: "17"
+      storageSize:
+        type: string
+        default: "1Gi"
+      storageClass:
+        type: string
+        default: ""
+
+      # Backup configuration (for production profile)
+      backupEnabled:
+        type: boolean
+        default: false
+      backupDestination:
+        type: string
+        default: ""
+      backupSecretName:
+        type: string
+        default: "s3-backup-creds"
+
+      # Monitoring configuration
+      monitoringEnabled:
+        type: boolean
+        default: false
+
+      # Credentials configuration
+      ocmConfigSecretName:
+        type: string
+        default: ""
+
+  resources:
+    # OCM Repository resource
+    - id: ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Repository
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        namespace: ${schema.spec.namespace}
+      spec:
+        url: oci://${schema.spec.registry.url}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Component resource
+    - id: ocm-component
+      dependsOn:
+        - ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Component
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        namespace: ${schema.spec.namespace}
+      spec:
+        component: ${schema.spec.componentName}
+        version: ${schema.spec.componentVersion}
+        repository:
+          name: ${resources.ocm-repository.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Operator Helm Chart
+    - id: operator-helm-chart-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cnpg-operator-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cnpg-operator-chart
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Operator Image
+    - id: operator-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cnpg-operator-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cnpg-operator-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - PostgreSQL Image
+    - id: postgresql-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: postgresql-${schema.spec.postgresVersion}-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: postgresql-${schema.spec.postgresVersion}-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Cluster Helm Chart
+    - id: cluster-helm-chart-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cnpg-cluster-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cnpg-cluster-chart
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # Operator Namespace
+    - id: operator-namespace
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ${schema.spec.operatorNamespace}
+
+    # Cluster Namespace
+    - id: cluster-namespace
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ${schema.spec.clusterNamespace}
+
+    # FluxCD OCIRepository for Operator Helm Chart
+    - id: operator-oci-repository
+      dependsOn:
+        - operator-namespace
+        - operator-helm-chart-resource
+      apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      metadata:
+        name: cnpg-operator-chart
+        namespace: ${schema.spec.operatorNamespace}
+      spec:
+        interval: 10m
+        url: ${resources.operator-helm-chart-resource.status.localization.ociArtifact.url}
+        ref:
+          tag: ${resources.operator-helm-chart-resource.status.localization.ociArtifact.tag}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # FluxCD HelmRelease for Operator
+    - id: operator-helm-release
+      dependsOn:
+        - operator-oci-repository
+        - operator-image-resource
+      apiVersion: helm.toolkit.fluxcd.io/v2beta1
+      kind: HelmRelease
+      metadata:
+        name: cloudnative-pg-operator
+        namespace: ${schema.spec.operatorNamespace}
+      spec:
+        interval: 10m
+        chart:
+          spec:
+            chart: ./
+            sourceRef:
+              kind: OCIRepository
+              name: ${resources.operator-oci-repository.metadata.name}
+            interval: 10m
+        values:
+          image:
+            repository: ${resources.operator-image-resource.status.localization.ociArtifact.repository}
+            tag: ${resources.operator-image-resource.status.localization.ociArtifact.tag}
+          monitoring:
+            podMonitorEnabled: ${schema.spec.monitoringEnabled}
+          replicaCount: ${schema.spec.deploymentProfile == "production" ? 2 : 1}
+
+    # FluxCD OCIRepository for Cluster Helm Chart
+    - id: cluster-oci-repository
+      dependsOn:
+        - cluster-namespace
+        - cluster-helm-chart-resource
+        - operator-helm-release
+      apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      metadata:
+        name: cnpg-cluster-chart
+        namespace: ${schema.spec.clusterNamespace}
+      spec:
+        interval: 10m
+        url: ${resources.cluster-helm-chart-resource.status.localization.ociArtifact.url}
+        ref:
+          tag: ${resources.cluster-helm-chart-resource.status.localization.ociArtifact.tag}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # FluxCD HelmRelease for Cluster
+    - id: cluster-helm-release
+      dependsOn:
+        - cluster-oci-repository
+        - postgresql-image-resource
+      apiVersion: helm.toolkit.fluxcd.io/v2beta1
+      kind: HelmRelease
+      metadata:
+        name: ${schema.spec.clusterName}
+        namespace: ${schema.spec.clusterNamespace}
+      spec:
+        interval: 10m
+        chart:
+          spec:
+            chart: ./
+            sourceRef:
+              kind: OCIRepository
+              name: ${resources.cluster-oci-repository.metadata.name}
+            interval: 10m
+        values:
+          cluster:
+            name: ${schema.spec.clusterName}
+            instances: ${schema.spec.instances}
+            imageName: ${resources.postgresql-image-resource.status.localization.ociArtifact.repository}:${resources.postgresql-image-resource.status.localization.ociArtifact.tag}
+            storage:
+              size: ${schema.spec.storageSize}
+              storageClass: ${schema.spec.storageClass}
+            # Conditional backup configuration
+            backup: ${schema.spec.backupEnabled ? {
+              "enabled": true,
+              "barmanObjectStore": {
+                "destinationPath": schema.spec.backupDestination,
+                "s3Credentials": {
+                  "accessKeyId": {
+                    "name": schema.spec.backupSecretName,
+                    "key": "ACCESS_KEY_ID"
+                  },
+                  "secretAccessKey": {
+                    "name": schema.spec.backupSecretName,
+                    "key": "SECRET_ACCESS_KEY"
+                  },
+                  "region": {
+                    "name": schema.spec.backupSecretName,
+                    "key": "REGION"
+                  }
+                }
+              },
+              "retentionPolicy": "30d"
+            } : {"enabled": false}}
+            # Conditional monitoring
+            monitoring:
+              enabled: ${schema.spec.monitoringEnabled}
+              podMonitorEnabled: ${schema.spec.monitoringEnabled}
+            # Production-specific settings
+            postgresql:
+              parameters: ${schema.spec.deploymentProfile == "production" ? {
+                "shared_buffers": "2GB",
+                "effective_cache_size": "6GB",
+                "work_mem": "16MB",
+                "maintenance_work_mem": "512MB",
+                "max_wal_size": "4GB",
+                "checkpoint_completion_target": "0.9",
+                "wal_level": "replica",
+                "max_wal_senders": "10",
+                "hot_standby": "on"
+              } : {}}
+            # High availability settings for production
+            enableSuperuserAccess: ${schema.spec.deploymentProfile == "production"}
+            primaryUpdateStrategy: ${schema.spec.deploymentProfile == "production" ? "unsupervised" : "supervised"}
+            affinity:
+              enablePodAntiAffinity: ${schema.spec.deploymentProfile == "production"}
+              topologyKey: ${schema.spec.deploymentProfile == "production" ? "topology.kubernetes.io/zone" : "kubernetes.io/hostname"}

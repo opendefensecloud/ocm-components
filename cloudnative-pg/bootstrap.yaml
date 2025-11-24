@@ -1,0 +1,159 @@
+---
+# Bootstrap configuration for CloudNativePG component deployment
+# This file uses OCM K8s Toolkit to fetch and deploy the ResourceGraphDefinition
+# from the OCM component, enabling self-contained deployment with automatic
+# image localization when components are transferred between registries.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ocm-system
+---
+# Optional: Secret for private registry access
+# Uncomment and configure if using a private OCI registry
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: ocm-registry-credentials
+#   namespace: ocm-system
+# type: kubernetes.io/dockerconfigjson
+# data:
+#   .dockerconfigjson: <base64-encoded-docker-config>
+---
+# OCM Repository - Points to the OCI registry containing OCM components
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Repository
+metadata:
+  name: cloudnative-pg-repo
+  namespace: ocm-system
+spec:
+  # Replace with your OCM registry URL
+  url: oci://ghcr.io/your-org/ocm-components
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Component - References the specific CloudNativePG component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Component
+metadata:
+  name: cloudnative-pg-component
+  namespace: ocm-system
+spec:
+  component: github.com/ocm/cloudnative-pg
+  version: 1.27.1
+  repository:
+    name: cloudnative-pg-repo
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Resource - Fetches the ResourceGraphDefinition from the component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: cloudnative-pg-rgd
+  namespace: ocm-system
+spec:
+  resource: cloudnative-pg-rgd
+  component:
+    name: cloudnative-pg-component
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Deployer - Applies the RGD content to the cluster
+# Note: This is a cluster-scoped operation that creates the RGD CRD
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Deployer
+metadata:
+  name: cloudnative-pg-rgd-deployer
+  namespace: ocm-system
+spec:
+  resource:
+    name: cloudnative-pg-rgd
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# Example CloudNativePG Bootstrap instance - Minimal configuration
+# This creates an actual deployment using the RGD
+apiVersion: v1alpha1
+kind: CloudNativePGBootstrap
+metadata:
+  name: cloudnative-pg-minimal
+  namespace: default
+spec:
+  # Registry configuration
+  registry:
+    url: ghcr.io  # Replace with your registry if using a private one
+
+  # Component reference
+  componentName: github.com/ocm/cloudnative-pg
+  componentVersion: 1.27.1
+
+  # Deployment configuration
+  namespace: cnpg-system
+  operatorNamespace: cnpg-system
+
+  # Use minimal profile for development/testing
+  deploymentProfile: minimal
+
+  # PostgreSQL cluster configuration
+  clusterName: postgres-minimal
+  clusterNamespace: postgres
+  instances: 1
+  postgresVersion: "17"
+  storageSize: 1Gi
+  # storageClass: ""  # Leave empty to use default storage class
+
+  # Backup disabled for minimal profile
+  backupEnabled: false
+
+  # Monitoring disabled for minimal profile
+  monitoringEnabled: false
+
+  # Optional: Reference to OCM config secret for private registries
+  # ocmConfigSecretName: ocm-registry-credentials
+---
+# Example CloudNativePG Bootstrap instance - Production configuration
+# Uncomment to deploy a production-grade HA cluster
+# apiVersion: v1alpha1
+# kind: CloudNativePGBootstrap
+# metadata:
+#   name: cloudnative-pg-production
+#   namespace: default
+# spec:
+#   # Registry configuration
+#   registry:
+#     url: ghcr.io
+#
+#   # Component reference
+#   componentName: github.com/ocm/cloudnative-pg
+#   componentVersion: 1.27.1
+#
+#   # Deployment configuration
+#   namespace: cnpg-system
+#   operatorNamespace: cnpg-system
+#
+#   # Use production profile for HA setup
+#   deploymentProfile: production
+#
+#   # PostgreSQL cluster configuration
+#   clusterName: postgres-ha
+#   clusterNamespace: postgres-production
+#   instances: 3  # High availability with 3 replicas
+#   postgresVersion: "17"
+#   storageSize: 100Gi
+#   storageClass: fast-ssd  # Use your fast storage class
+#
+#   # Backup configuration
+#   backupEnabled: true
+#   backupDestination: s3://your-bucket-name/postgres-ha
+#   backupSecretName: s3-backup-creds
+#
+#   # Monitoring enabled
+#   monitoringEnabled: true
+#
+#   # Optional: Reference to OCM config secret for private registries
+#   # ocmConfigSecretName: ocm-registry-credentials

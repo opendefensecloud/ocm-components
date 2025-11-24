@@ -11,7 +11,35 @@ components:
       - name: app.kubernetes.io/part-of
         value: cloudnative-pg
     resources:
-      # CloudNativePG Operator Manifest
+      # ResourceGraphDefinition for KRO bootstrapping
+      - name: cloudnative-pg-rgd
+        type: yaml
+        version: 1.27.1
+        relation: local
+        input:
+          type: file
+          path: rgd-template.yaml
+          mediaType: application/x-yaml
+
+      # CloudNativePG Operator Helm Chart (official)
+      - name: cnpg-operator-chart
+        type: helmChart
+        version: 0.26.1
+        relation: local
+        input:
+          type: helm
+          path: cloudnative-pg-0.26.1.tgz
+
+      # CloudNativePG Cluster Helm Chart (official)
+      - name: cnpg-cluster-chart
+        type: helmChart
+        version: 0.0.11
+        relation: local
+        input:
+          type: helm
+          path: cluster-0.0.11.tgz
+
+      # CloudNativePG Operator Manifest (legacy/alternative deployment)
       - name: cnpg-operator-manifest
         type: yaml
         version: 1.27.1
@@ -21,7 +49,7 @@ components:
           path: operator/cnpg-operator.yml
           mediaType: application/x-yaml
 
-      # CloudNativePG Operator Helm Chart Values
+      # CloudNativePG Operator Helm Chart Values (reference)
       - name: cnpg-operator-values
         type: yaml
         version: 1.27.1
@@ -31,7 +59,7 @@ components:
           path: operator/values.yaml
           mediaType: application/x-yaml
 
-      # CloudNativePG Cluster Helm Chart Values
+      # CloudNativePG Cluster Helm Chart Values (reference)
       - name: cnpg-cluster-values
         type: yaml
         version: 1.27.1

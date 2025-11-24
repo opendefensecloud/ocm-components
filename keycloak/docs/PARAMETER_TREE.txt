@@ -1,0 +1,180 @@
+Keycloak Custom Resource Parameter Tree
+Keycloak Operator v26.4.5
+========================================
+
+spec
+├── instances (integer)
+│   └── Number of Keycloak replicas [default: 1]
+│
+├── image (string)
+│   └── Custom Keycloak container image
+│
+├── imagePullSecrets (array)
+│   └── Secrets for private registries
+│
+├── startOptimized (boolean)
+│   └── Force --optimized flag behavior
+│
+├── db (object) - DATABASE CONFIGURATION
+│   ├── vendor (string) - postgres, mysql, mariadb, mssql, oracle
+│   ├── host (string)
+│   ├── port (integer)
+│   ├── database (string)
+│   ├── url (string) - Full JDBC URL (overrides host/port/database)
+│   ├── schema (string)
+│   ├── usernameSecret (object)
+│   │   ├── name (string)
+│   │   ├── key (string)
+│   │   └── optional (boolean)
+│   ├── passwordSecret (object)
+│   │   ├── name (string)
+│   │   ├── key (string)
+│   │   └── optional (boolean)
+│   ├── poolInitialSize (integer)
+│   ├── poolMinSize (integer)
+│   └── poolMaxSize (integer)
+│
+├── http (object) - HTTP/HTTPS CONFIGURATION
+│   ├── httpEnabled (boolean)
+│   ├── httpPort (integer)
+│   ├── httpsPort (integer)
+│   ├── tlsSecret (string) - Kubernetes TLS secret
+│   ├── annotations (object) - Service annotations
+│   └── labels (object) - Service labels
+│
+├── httpManagement (object) - MANAGEMENT INTERFACE
+│   └── port (integer)
+│
+├── proxy (object) - REVERSE PROXY
+│   └── headers (string) - "xforwarded" or "forwarded"
+│
+├── hostname (object) - HOSTNAME CONFIGURATION
+│   ├── hostname (string) - Public hostname
+│   ├── admin (string) - Admin console hostname
+│   ├── adminUrl (string) - DEPRECATED
+│   ├── strict (boolean) - Disable dynamic hostname resolution
+│   ├── strictBackchannel (boolean) - DEPRECATED
+│   └── backchannelDynamic (boolean) - Enable dynamic backchannel URLs
+│
+├── ingress (object) - INGRESS CONFIGURATION
+│   ├── enabled (boolean) - Enable/disable ingress [default: true]
+│   ├── className (string) - Ingress class name
+│   ├── annotations (object) - Ingress annotations
+│   ├── labels (object) - Ingress labels
+│   └── tlsSecret (string) - TLS secret for ingress
+│
+├── features (object) - KEYCLOAK FEATURES
+│   ├── enabled (array of strings)
+│   └── disabled (array of strings)
+│
+├── bootstrapAdmin (object) - BOOTSTRAP ADMIN
+│   ├── user (object)
+│   │   └── secret (string) - Secret with username/password
+│   └── service (object)
+│       └── secret (string) - Secret with client-id/client-secret
+│
+├── cache (object) - CACHE CONFIGURATION
+│   └── configMapFile (object)
+│       ├── name (string) - ConfigMap name
+│       ├── key (string) - ConfigMap key
+│       └── optional (boolean)
+│
+├── env (array) - ENVIRONMENT VARIABLES
+│   └── items (object)
+│       ├── name (string)
+│       ├── value (string)
+│       └── secret (object)
+│           ├── name (string)
+│           ├── key (string)
+│           └── optional (boolean)
+│
+├── additionalOptions (array) - ADDITIONAL KEYCLOAK OPTIONS
+│   └── items (object)
+│       ├── name (string) - Keycloak config key
+│       ├── value (string) - Direct value
+│       └── secret (object) - Or secret reference
+│           ├── name (string)
+│           ├── key (string)
+│           └── optional (boolean)
+│
+├── livenessProbe (object) - LIVENESS PROBE
+│   ├── periodSeconds (integer) [default: 10]
+│   └── failureThreshold (integer) [default: 3]
+│
+├── readinessProbe (object) - READINESS PROBE
+│   ├── periodSeconds (integer) [default: 10]
+│   └── failureThreshold (integer) [default: 3]
+│
+├── startupProbe (object) - STARTUP PROBE
+│   ├── periodSeconds (integer) [default: 1]
+│   └── failureThreshold (integer) [default: 600]
+│
+├── resources (object) - RESOURCE MANAGEMENT
+│   ├── requests (object)
+│   │   ├── cpu (string)
+│   │   └── memory (string) [default: 1700Mi]
+│   ├── limits (object)
+│   │   ├── cpu (string)
+│   │   └── memory (string) [default: 2Gi]
+│   └── claims (array)
+│
+├── scheduling (object) - POD SCHEDULING
+│   ├── priorityClassName (string)
+│   ├── affinity (object) - Full Kubernetes affinity spec
+│   ├── tolerations (array) - Kubernetes tolerations
+│   └── topologySpreadConstraints (array)
+│
+├── serviceMonitor (object) - PROMETHEUS MONITORING
+│   ├── enabled (boolean) [default: true]
+│   ├── interval (string) - Scrape interval
+│   └── scrapeTimeout (string)
+│
+├── tracing (object) - OPENTELEMETRY TRACING
+│   ├── enabled (boolean)
+│   ├── endpoint (string) - OTLP endpoint
+│   ├── protocol (string) - "grpc" or "http/protobuf"
+│   ├── samplerType (string)
+│   ├── samplerRatio (number) - 0.0 to 1.0
+│   ├── serviceName (string)
+│   ├── compression (string) - "gzip" or "none"
+│   └── resourceAttributes (object)
+│
+├── transaction (object) - TRANSACTION CONFIGURATION
+│   └── xaEnabled (boolean)
+│
+├── truststores (object) - TLS TRUSTSTORES
+│   └── (Custom truststore configuration)
+│
+├── networkPolicy (object) - NETWORK POLICY
+│   ├── enabled (boolean)
+│   ├── http (array) - Ingress rules for HTTP
+│   ├── https (array) - Ingress rules for HTTPS
+│   └── management (array) - Ingress rules for management
+│
+├── import (object) - IMPORT JOB CONFIGURATION
+│   └── scheduling (object) - Import job scheduling
+│       ├── affinity (object)
+│       ├── tolerations (array)
+│       └── priorityClassName (string)
+│
+├── update (object) - UPDATE STRATEGY
+│   ├── strategy (string) - Update strategy type
+│   ├── revision (string) - Explicit strategy revision
+│   └── scheduling (object) - Update job scheduling
+│
+└── unsupported (object) - ADVANCED/UNSUPPORTED
+    └── podTemplate (object) - Pod template customization
+        └── (Full Kubernetes pod template spec)
+
+========================================
+Statistics:
+- Top-level parameters: 28
+- Total parameters (nested): 1,604
+- Categories: 19
+
+Key Notes:
+1. Database configuration is REQUIRED
+2. TLS secrets recommended for production
+3. ServiceMonitor enabled by default
+4. Default memory: 1700Mi request, 2Gi limit
+5. Use additionalOptions for any server config not exposed as field

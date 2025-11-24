@@ -24,9 +24,13 @@ keycloak/
 │   │   └── keycloak.yml        # Dev/test setup with ephemeral DB
 │   └── production/              # Production configuration
 │       └── keycloak.yml        # HA setup with external DB
+├── docs/                        # Configuration documentation
+│   ├── CR_CONFIGURATION.md     # Complete CR parameter reference (1,604 parameters)
+│   ├── QUICK_REFERENCE.md      # Quick lookup tables
+│   ├── PARAMETER_TREE.txt      # Visual parameter hierarchy
+│   └── ARCHITECTURE.md         # Architecture overview
 ├── examples/                    # Usage examples
 ├── tests/                       # Test scripts
-├── docs/                        # Additional documentation
 ├── component-constructor.yaml   # OCM component descriptor
 └── README.md                    # This file
 ```
@@ -152,6 +156,131 @@ kubectl apply -f configs/minimal/keycloak.yml
    ```bash
    kubectl apply -f configs/production/keycloak.yml
    ```
+
+## Advanced Configuration
+
+The Keycloak Operator provides extensive configuration options through the Keycloak Custom Resource (CR). We provide comprehensive documentation of all available parameters to meet enterprise requirements.
+
+### Configuration Documentation
+
+See [`docs/CR_CONFIGURATION.md`](docs/CR_CONFIGURATION.md) for complete documentation of all 1,604 configuration parameters available in the Keycloak CR, including:
+
+- **Instance Configuration**: Replicas, image, image pull secrets, startup optimization
+- **Database Configuration**: Vendor, host, connection pooling, credentials management
+- **HTTP/HTTPS Configuration**: Ports, TLS certificates, service annotations
+- **Hostname Configuration**: Public hostname, admin URL, backchannel settings
+- **Ingress Configuration**: Kubernetes Ingress integration
+- **Feature Flags**: Enable/disable Keycloak features
+- **Bootstrap Admin**: Initial admin user configuration
+- **Cache Configuration**: Infinispan distributed cache settings
+- **Environment Variables**: Custom environment variables and options
+- **Health Probes**: Liveness, readiness, and startup probe configuration
+- **Resource Management**: CPU and memory requests/limits
+- **Pod Scheduling**: Affinity, tolerations, topology spread, priority
+- **Observability**: Prometheus ServiceMonitor, OpenTelemetry tracing
+- **Transactions**: XA datasource configuration
+- **TLS Truststores**: Custom certificate trust configuration
+- **Network Policy**: Ingress traffic control
+- **Import Jobs**: Realm import configuration
+- **Update Strategy**: Rolling update configuration
+- **Advanced**: Unsupported pod template customization
+
+### Quick Reference
+
+For a concise lookup table of commonly used parameters, see [`docs/QUICK_REFERENCE.md`](docs/QUICK_REFERENCE.md).
+
+### Parameter Tree
+
+For a visual tree structure of all parameters and their relationships, see [`docs/PARAMETER_TREE.txt`](docs/PARAMETER_TREE.txt).
+
+### Example: Custom Configuration
+
+Here's an example of using advanced configuration options:
+
+```yaml
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak-custom
+  namespace: keycloak
+spec:
+  instances: 3
+
+  # Custom image
+  image: quay.io/keycloak/keycloak:26.4.5
+  imagePullSecrets:
+    - name: registry-credentials
+
+  # Database with connection pooling
+  db:
+    vendor: postgres
+    host: postgres-ha-rw.postgres.svc
+    port: 5432
+    database: keycloak
+    poolMinSize: 10
+    poolMaxSize: 100
+    poolInitialSize: 20
+    usernameSecret:
+      name: keycloak-db-secret
+      key: username
+    passwordSecret:
+      name: keycloak-db-secret
+      key: password
+
+  # TLS configuration
+  http:
+    tlsSecret: keycloak-tls-secret
+    httpPort: 8080
+    httpsPort: 8443
+
+  # Hostname configuration
+  hostname:
+    hostname: keycloak.example.com
+    admin: admin-keycloak.example.com
+    strict: true
+    strictBackchannel: true
+
+  # Enable specific features
+  features:
+    enabled:
+      - docker
+      - token-exchange
+      - admin-fine-grained-authz
+    disabled:
+      - impersonation
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "2"
+      memory: "2Gi"
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+
+  # OpenTelemetry tracing
+  additionalOptions:
+    - name: tracing-enabled
+      value: "true"
+    - name: tracing-endpoint
+      value: "http://jaeger-collector:4317"
+    - name: tracing-protocol
+      value: "grpc"
+    - name: tracing-sampler-type
+      value: "traceidratio"
+    - name: tracing-sampler-ratio
+      value: "1.0"
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    ingressClassName: nginx
+```
+
+For more examples and detailed parameter descriptions, see the configuration documentation.
 
 ## OCM Component
 

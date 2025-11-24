@@ -37,13 +37,215 @@ cloudnative-pg/
 
 ## Quick Start
 
-### Prerequisites
+There are three ways to deploy CloudNativePG, depending on your needs:
+
+1. **RGD/KRO Bootstrap (Recommended)** - Self-contained deployment with automatic image localization
+2. **Helm Charts** - Standard Helm-based deployment
+3. **Direct Manifests** - Manual Kubernetes manifest deployment
+
+### Method 1: RGD/KRO Bootstrap Deployment (Recommended)
+
+This method uses ResourceGraphDefinitions (RGD) with KRO for a fully automated, self-contained deployment that includes automatic image localization when transferring between registries.
+
+#### Prerequisites
+
+- Kubernetes cluster (1.24+)
+- kubectl configured
+- OCM K8s Toolkit installed
+- KRO (Kubernetes Resource Orchestrator) installed
+- FluxCD installed (for HelmRelease support)
+- Storage class available
+
+#### Installation
+
+1. **Install prerequisites:**
+
+   ```bash
+   # Install cert-manager (required by OCM controller)
+   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.2/cert-manager.yaml
+   kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
+   kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+   kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+
+   # Install OCM K8s Toolkit
+   helm upgrade --install ocm-controller \
+     oci://ghcr.io/open-component-model/helm/ocm-controller \
+     --version v0.26.0 \
+     --namespace ocm-system --create-namespace --wait
+
+   # Install FluxCD
+   kubectl apply -f https://github.com/fluxcd/flux2/releases/latest/download/install.yaml
+
+   # Install KRO (Kubernetes Resource Orchestrator)
+   KRO_VERSION=$(curl -s "https://api.github.com/repos/kro-run/kro/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | tr -d 'v')
+   helm install kro oci://public.ecr.aws/kro/kro \
+     --namespace kro --create-namespace \
+     --version="${KRO_VERSION}" --wait
+   ```
+
+2. **Build and transfer OCM component:**
+
+   ```bash
+   # Build component archive
+   cd cloudnative-pg
+   ocm add componentversions --create --file cloudnative-pg-component.ctf component-constructor.yaml
+
+   # Transfer to your OCI registry
+   ocm transfer ctf cloudnative-pg-component.ctf oci://your-registry/ocm-components
+   ```
+
+3. **Update bootstrap.yaml with your registry URL:**
+
+   ```bash
+   # Edit bootstrap.yaml
+   vim bootstrap.yaml
+
+   # Update the Repository spec.url to point to your registry:
+   spec:
+     url: oci://your-registry/ocm-components
+   ```
+
+4. **Apply bootstrap configuration:**
+
+   ```bash
+   kubectl apply -f bootstrap.yaml
+   ```
+
+5. **Verify deployment:**
+
+   ```bash
+   # Check RGD was created
+   kubectl get rgd
+
+   # Check CloudNativePGBootstrap CRD exists
+   kubectl get crd cloudnativepgbootstraps.v1alpha1.kro.run
+
+   # Check bootstrap instance status
+   kubectl get CloudNativePGBootstrap cloudnative-pg-minimal
+
+   # Wait for ACTIVE state
+   kubectl wait --for=condition=Synced CloudNativePGBootstrap/cloudnative-pg-minimal --timeout=10m
+
+   # Verify operator is running
+   kubectl get pods -n cnpg-system
+
+   # Verify PostgreSQL cluster
+   kubectl get cluster -n postgres
+   kubectl get pods -n postgres
+   ```
+
+6. **Get connection credentials:**
+
+   ```bash
+   # Username
+   kubectl get secret app-user-secret -n postgres -o jsonpath='{.data.username}' | base64 -d
+
+   # Password
+   kubectl get secret app-user-secret -n postgres -o jsonpath='{.data.password}' | base64 -d
+   ```
+
+7. **Connect to PostgreSQL:**
+
+   ```bash
+   # Port forward for local access
+   kubectl port-forward -n postgres svc/postgres-minimal-rw 5432:5432
+
+   # Connect
+   psql postgresql://app:<password>@localhost:5432/app
+   ```
+
+#### Customizing the Bootstrap Deployment
+
+The [bootstrap.yaml](bootstrap.yaml) includes examples for both minimal and production configurations. You can customize the deployment by modifying the `CloudNativePGBootstrap` resource:
+
+```yaml
+apiVersion: v1alpha1
+kind: CloudNativePGBootstrap
+metadata:
+  name: my-postgres
+  namespace: default
+spec:
+  # Deployment profile: "minimal" or "production"
+  deploymentProfile: production
+
+  # Cluster configuration
+  clusterName: my-postgres-cluster
+  clusterNamespace: my-app
+  instances: 3  # Number of PostgreSQL instances
+  postgresVersion: "17"
+  storageSize: 100Gi
+  storageClass: fast-ssd
+
+  # Enable backups (production)
+  backupEnabled: true
+  backupDestination: s3://my-bucket/postgres-backup
+  backupSecretName: s3-backup-creds
+
+  # Enable monitoring
+  monitoringEnabled: true
+```
+
+See the [RGD Template](rgd-template.yaml) for all available configuration options.
+
+### Method 2: Helm Chart Deployment
+
+For standard Helm-based deployments without RGD/KRO:
+
+#### Prerequisites
+
+- Kubernetes cluster (1.24+)
+- kubectl configured
+- Helm 3.x installed
+- Storage class available
+
+#### Installation
+
+1. **Add CloudNativePG Helm repository:**
+
+   ```bash
+   helm repo add cnpg https://cloudnative-pg.github.io/charts
+   helm repo update
+   ```
+
+2. **Install the operator:**
+
+   ```bash
+   helm upgrade --install cnpg cnpg/cloudnative-pg \
+     --namespace cnpg-system \
+     --create-namespace \
+     --wait
+   ```
+
+3. **Deploy PostgreSQL cluster:**
+
+   ```bash
+   # Minimal configuration
+   helm install my-db cnpg/cluster \
+     --namespace my-app \
+     --create-namespace \
+     --set cluster.instances=1 \
+     --set cluster.storage.size=1Gi
+
+   # Or production configuration
+   helm install my-db cnpg/cluster \
+     --namespace my-app \
+     --create-namespace \
+     --set cluster.instances=3 \
+     --set cluster.storage.size=100Gi \
+     --set cluster.storage.storageClass=fast-ssd
+   ```
+
+### Method 3: Direct Manifest Deployment
+
+For manual deployment using Kubernetes manifests:
+
+#### Prerequisites
 
 - Kubernetes cluster (1.24+)
 - kubectl configured
 - Storage class available
 
-### Installation
+#### Installation
 
 1. **Install the CloudNativePG Operator:**
 
@@ -194,6 +396,57 @@ helm install my-db cnpg/cluster \
   --set cluster.instances=5 \
   --set cluster.storage.size=500Gi
 ```
+
+## ResourceGraphDefinition (RGD) and KRO
+
+This component includes a ResourceGraphDefinition (RGD) that enables bootstrapping with KRO (Kubernetes Resource Orchestrator). The RGD pattern provides several key benefits:
+
+### Benefits of RGD Deployment
+
+1. **Self-contained Deployment**: All deployment logic is packaged with the OCM component
+2. **Automatic Image Localization**: When transferring components between registries, image references are automatically updated
+3. **Simplified Operations**: Users only need to apply `bootstrap.yaml` - no manual configuration required
+4. **Reproducible Deployments**: Deployment configuration is versioned with the component
+5. **Declarative Configuration**: Single YAML file controls the entire deployment
+
+### How RGD Works
+
+The RGD deployment follows a layered architecture:
+
+1. **OCM Layer**: Component resources (Helm charts, container images, RGD template) are stored in OCM registry
+2. **Bootstrap Layer**: OCM K8s Toolkit resources (Repository, Component, Resource, Deployer) fetch the RGD from OCM
+3. **RGD Execution**: KRO processes the RGD and creates a custom CRD (`CloudNativePGBootstrap`)
+4. **Deployment Layer**: FluxCD resources (OCIRepository, HelmRelease) deploy the actual application
+
+### Image Localization
+
+The RGD implements two-step localization:
+
+1. **OCM Transfer**: Use `ocm transfer --copy-resources` flag to transfer components between registries
+2. **Runtime Injection**: RGD uses OCM K8s Toolkit Resource objects to extract updated image references and inject them into Helm values
+
+This ensures that when you transfer the component from `registry-a.com` to `registry-b.com`, all image references automatically update without manual intervention.
+
+### Testing the RGD Deployment
+
+A comprehensive test script is provided to verify the RGD deployment:
+
+```bash
+cd tests
+./test-rgd-bootstrap.sh
+```
+
+This test:
+
+- Creates a kind cluster
+- Installs OCM K8s Toolkit, FluxCD, and KRO
+- Builds and transfers the OCM component
+- Deploys CloudNativePG via RGD bootstrap
+- Verifies all resources are created correctly
+- Tests PostgreSQL connectivity
+- Validates image localization
+
+See [tests/test-rgd-bootstrap.sh](tests/test-rgd-bootstrap.sh) for details.
 
 ## OCM Component
 
