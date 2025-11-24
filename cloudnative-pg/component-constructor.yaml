@@ -19,7 +19,6 @@ components:
         input:
           type: file
           path: rgd-template.yaml
-          mediaType: application/x-yaml
 
       # CloudNativePG Operator Helm Chart (official)
       - name: cnpg-operator-chart
@@ -47,7 +46,6 @@ components:
         input:
           type: file
           path: operator/cnpg-operator.yml
-          mediaType: application/x-yaml
 
       # CloudNativePG Operator Helm Chart Values (reference)
       - name: cnpg-operator-values
@@ -57,7 +55,6 @@ components:
         input:
           type: file
           path: operator/values.yaml
-          mediaType: application/x-yaml
 
       # CloudNativePG Cluster Helm Chart Values (reference)
       - name: cnpg-cluster-values
@@ -67,7 +64,6 @@ components:
         input:
           type: file
           path: operator/cluster-values.yaml
-          mediaType: application/x-yaml
 
       # CloudNativePG Operator Container Image
       - name: cnpg-operator-image
@@ -87,7 +83,7 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/cloudnative-pg/postgresql:17
 
-      # PostgreSQL 16 Image
+      # PostgreSQL 16 Image (LTS)
       - name: postgresql-16-image
         type: ociImage
         version: "16"
@@ -95,15 +91,6 @@ components:
         access:
           type: ociArtifact
           imageReference: ghcr.io/cloudnative-pg/postgresql:16
-
-      # PostgreSQL 15 Image
-      - name: postgresql-15-image
-        type: ociImage
-        version: "15"
-        relation: external
-        access:
-          type: ociArtifact
-          imageReference: ghcr.io/cloudnative-pg/postgresql:15
 
       # Minimal Configuration (Single instance, development)
       - name: cnpg-minimal-config
@@ -113,7 +100,6 @@ components:
         input:
           type: file
           path: configs/minimal/cluster.yaml
-          mediaType: application/x-yaml
 
       # Production Configuration (HA with replicas, backup, monitoring)
       - name: cnpg-production-config
@@ -123,7 +109,6 @@ components:
         input:
           type: file
           path: configs/production/cluster.yaml
-          mediaType: application/x-yaml
 
       # Helm Chart Reference (for advanced users)
       - name: helm-chart-info
@@ -133,7 +118,6 @@ components:
         input:
           type: file
           path: docs/HELM_CHART_CONFIG.md
-          mediaType: text/markdown
 
     sources:
       - name: cnpg-operator-source

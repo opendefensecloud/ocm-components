@@ -48,7 +48,7 @@ spec:
         default: 1
       postgresVersion:
         type: string
-        enum: ["15", "16", "17"]
+        enum: ["16", "17"]
         default: "17"
       storageSize:
         type: string
