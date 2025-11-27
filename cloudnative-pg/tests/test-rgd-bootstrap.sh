@@ -54,7 +54,7 @@ trap cleanup EXIT
 # Main test flow
 main() {
     log_info "Starting CloudNativePG RGD/KRO bootstrap test..."
-    log_info "This test verifies the ResourceGroup deployment pattern"
+    log_info "This test verifies the ResourceGraphDefinition deployment pattern"
 
     # Check prerequisites
     log_step "Checking prerequisites..."
@@ -199,12 +199,13 @@ EOF
 
     # Install KRO (Kubernetes Resource Orchestrator)
     log_step "Installing KRO (Kubernetes Resource Orchestrator)..."
-    log_info "Installing KRO via Helm from public.ecr.aws..."
+    log_info "Installing KRO via Helm from ghcr.io..."
 
-    # Install KRO without version specification to get the latest available
-    log_info "Installing latest available KRO version from ECR..."
+    # Install KRO version 0.6.3
+    log_info "Installing KRO version 0.6.3 from GitHub Container Registry..."
 
-    helm install kro oci://public.ecr.aws/kro/kro \
+    helm install kro oci://registry.k8s.io/kro/charts/kro \
+        --version 0.6.3 \
         --namespace kro \
         --create-namespace \
         --wait \
@@ -224,10 +225,10 @@ EOF
             exit 1
         }
 
-    # Verify ResourceGroup CRD is installed
-    log_info "Verifying ResourceGroup CRD is installed..."
-    kubectl get crd resourcegroups.kro.run || {
-        log_error "ResourceGroup CRD not found"
+    # Verify ResourceGraphDefinition CRD is installed
+    log_info "Verifying ResourceGraphDefinition CRD is installed..."
+    kubectl get crd resourcegraphdefinitions.kro.run || {
+        log_error "ResourceGraphDefinition CRD not found"
         kubectl get crds | grep kro
         exit 1
     }
@@ -341,12 +342,12 @@ EOF
         exit 1
     }
 
-    # Wait for ResourceGroup to be created
-    log_step "Waiting for ResourceGroup to be created..."
+    # Wait for ResourceGraphDefinition to be created
+    log_step "Waiting for ResourceGraphDefinition to be created..."
     timeout=0
     while [ $timeout -lt 300 ]; do
-        if kubectl get resourcegroup cloudnative-pg-bootstrap 2>/dev/null; then
-            log_info "✓ ResourceGroup created successfully!"
+        if kubectl get rgd cloudnative-pg-bootstrap 2>/dev/null; then
+            log_info "✓ ResourceGraphDefinition created successfully!"
             break
         fi
         sleep 5
@@ -354,13 +355,13 @@ EOF
     done
 
     if [ $timeout -ge 300 ]; then
-        log_error "Timeout waiting for ResourceGroup to be created"
-        kubectl get resourcegroup -A
+        log_error "Timeout waiting for ResourceGraphDefinition to be created"
+        kubectl get rgd -A
         kubectl get deployer -n ocm-system -o yaml
         exit 1
     fi
 
-    # Verify custom CRD was created by ResourceGroup
+    # Verify custom CRD was created by ResourceGraphDefinition
     log_info "Verifying CloudNativePGBootstrap CRD was created..."
     kubectl get crd cloudnativepgbootstraps.v1alpha1.kro.run || {
         log_error "CloudNativePGBootstrap CRD not found"
@@ -486,7 +487,7 @@ EOF
     log_info "✓ OCM K8s Toolkit installed"
     log_info "✓ FluxCD installed"
     log_info "✓ KRO installed"
-    log_info "✓ ResourceGroup created"
+    log_info "✓ ResourceGraphDefinition created"
     log_info "✓ CloudNativePGBootstrap CRD created"
     log_info "✓ Bootstrap instance reached ACTIVE state"
     log_info "✓ CloudNativePG operator deployed via RGD"
