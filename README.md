@@ -61,6 +61,35 @@ kubectl apply --server-side -f cloudnative-pg/operator/cnpg-operator.yml
 kubectl apply -f cloudnative-pg/configs/minimal/cluster.yaml
 ```
 
+### Artifact Conduit (ARC) (v0.1.0)
+
+Kubernetes-native Artifact Gateway for Secure Cross-Zone Transfers
+
+- **Status**: ⚠️ Early Stage (Pre-release)
+- **License**: Apache 2.0
+- **Configurations**:
+  - Minimal (single instance for dev/test)
+  - Production (HA with 3 replicas, metrics enabled)
+- **Documentation**: [artifact-conduit/README.md](artifact-conduit/README.md)
+- **Dependencies**: cert-manager (required), Argo Workflows (required)
+- **Features**: Multi-source artifact procurement (OCI, Helm, S3, HTTP), security validation (CVE scanning, malware detection, license checks), policy enforcement, audit trails
+
+Quick Start:
+
+```bash
+# Install prerequisites
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/latest/download/install.yaml
+
+# Install with Helm
+helm install artifact-conduit artifact-conduit/arc-0.1.0.tgz \
+  --namespace arc-system \
+  --create-namespace \
+  --values artifact-conduit/configs/minimal/values.yaml
+```
+
+**Note**: Artifact Conduit is an early-stage project (356+ commits, 8 contributors) not yet recommended for production without thorough testing. It provides a declarative way to transfer artifacts across security boundaries with automated scanning and policy compliance.
+
 ## Suggested Components
 
 See [suggested-components.md](suggested-components.md) for a list of additional components that are candidates for inclusion in this monorepo based on common dependencies and use cases.

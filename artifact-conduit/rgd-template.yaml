@@ -1,0 +1,295 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: artifact-conduit-bootstrap
+  namespace: default
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: ArtifactConduitBootstrap
+    spec:
+      # Component reference configuration
+      registry:
+        url:
+          type: string
+          default: "ghcr.io"
+      componentName:
+        type: string
+        default: "github.com/ocm/artifact-conduit"
+      componentVersion:
+        type: string
+        default: "0.1.0"
+
+      # Deployment configuration
+      namespace:
+        type: string
+        default: "arc-system"
+
+      # Configuration profile selection
+      deploymentProfile:
+        type: string
+        enum: ["minimal", "production"]
+        default: "minimal"
+
+      # API Server configuration
+      apiServerReplicas:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 1
+
+      # Controller Manager configuration
+      controllerReplicas:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 1
+
+      # etcd configuration
+      etcdReplicas:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 1
+      etcdStorageSize:
+        type: string
+        default: "1Gi"
+      etcdStorageClass:
+        type: string
+        default: ""
+
+      # Monitoring configuration
+      metricsEnabled:
+        type: boolean
+        default: false
+      prometheusEnabled:
+        type: boolean
+        default: false
+
+      # Credentials configuration
+      ocmConfigSecretName:
+        type: string
+        default: ""
+
+  resources:
+    # OCM Repository resource
+    - id: ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Repository
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        namespace: ${schema.spec.namespace}
+      spec:
+        url: oci://${schema.spec.registry.url}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Component resource
+    - id: ocm-component
+      dependsOn:
+        - ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Component
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        namespace: ${schema.spec.namespace}
+      spec:
+        component: ${schema.spec.componentName}
+        version: ${schema.spec.componentVersion}
+        repository:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Fetch Helm Chart
+    - id: helm-chart-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: arc-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: arc-chart
+        component:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Fetch API Server Image metadata
+    - id: apiserver-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: arc-apiserver-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: arc-apiserver-image
+        component:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Fetch Controller Manager Image metadata
+    - id: controller-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: arc-controller-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: arc-controller-manager-image
+        component:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Fetch etcd Image metadata
+    - id: etcd-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: etcd-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: etcd-image
+        component:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Fetch configuration values
+    - id: config-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: arc-config
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: arc-${schema.spec.deploymentProfile}-config
+        component:
+          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # FluxCD OCIRepository - Watch Helm chart location
+    - id: oci-repository
+      dependsOn:
+        - helm-chart-resource
+      apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      metadata:
+        name: arc-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        url: ${resources.helmChartResource.status.access.imageReference}
+        ref:
+          tag: ${schema.spec.componentVersion}
+        provider: generic
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # Namespace for Artifact Conduit deployment
+    - id: arc-namespace
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ${schema.spec.namespace}
+        labels:
+          app.kubernetes.io/name: artifact-conduit
+          app.kubernetes.io/managed-by: kro
+
+    # FluxCD HelmRelease - Deploy Artifact Conduit with localized images
+    - id: helm-release
+      dependsOn:
+        - oci-repository
+        - apiserver-image-resource
+        - controller-image-resource
+        - etcd-image-resource
+        - config-resource
+        - arc-namespace
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: artifact-conduit
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        timeout: 10m
+        chart:
+          spec:
+            chart: arc
+            version: ${schema.spec.componentVersion}
+            sourceRef:
+              kind: OCIRepository
+              name: arc-chart
+              namespace: ${schema.spec.namespace}
+
+        # Merge user configuration with localized image references
+        valuesFrom:
+          # Base configuration from OCM component (minimal or production)
+          - kind: ConfigMap
+            name: arc-base-config
+            optional: false
+
+        values:
+          # Override images with localized references from OCM
+          apiserver:
+            replicaCount: ${schema.spec.apiServerReplicas}
+            image:
+              repository: ${resources.apiserverImageResource.status.access.imageReference | split(":")[0]}
+              tag: ${resources.apiserverImageResource.status.access.imageReference | split(":")[1]}
+
+          controller:
+            replicaCount: ${schema.spec.controllerReplicas}
+            image:
+              repository: ${resources.controllerImageResource.status.access.imageReference | split(":")[0]}
+              tag: ${resources.controllerImageResource.status.access.imageReference | split(":")[1]}
+
+            # Metrics configuration based on user preference
+            metrics:
+              enabled: ${schema.spec.metricsEnabled}
+              serviceMonitor:
+                enabled: ${schema.spec.prometheusEnabled}
+
+          etcd:
+            replicaCount: ${schema.spec.etcdReplicas}
+            image:
+              repository: ${resources.etcdImageResource.status.access.imageReference | split(":")[0]}
+              tag: ${resources.etcdImageResource.status.access.imageReference | split(":")[1]}
+            persistence:
+              size: ${schema.spec.etcdStorageSize}
+              storageClass: ${schema.spec.etcdStorageClass}
+
+        # Registry credentials for pulling images
+        kubeConfig:
+          secretRef:
+            name: ${schema.spec.ocmConfigSecretName}
+
+    # ConfigMap with base configuration from OCM component
+    - id: base-config
+      dependsOn:
+        - config-resource
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: arc-base-config
+        namespace: ${schema.spec.namespace}
+      data:
+        values.yaml: ${resources.configResource.status.content}
+
+  status:
+    conditions:
+      - type: Ready
+        reason: AllResourcesReady
+        message: "All Artifact Conduit resources are deployed and ready"

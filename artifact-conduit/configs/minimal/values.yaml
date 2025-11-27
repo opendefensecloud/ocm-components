@@ -1,0 +1,97 @@
+# Minimal Artifact Conduit Configuration
+# This configuration deploys a minimal single-instance ARC setup suitable for:
+# - Development environments
+# - Testing and evaluation
+# - Resource-constrained environments
+# - Non-HA scenarios
+
+# API Server configuration - single instance with minimal resources
+apiserver:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/opendefensecloud/arc-apiserver
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  service:
+    type: ClusterIP
+    port: 443
+
+# Controller Manager configuration - single instance
+controller:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/opendefensecloud/arc-controller-manager
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Leader election disabled for single instance
+  args:
+    leaderElect: false
+    metricsBindAddress: "0"  # Disable metrics for minimal setup
+
+  # Disable metrics for minimal profile
+  metrics:
+    enabled: false
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
+
+# etcd configuration - single instance with minimal storage
+etcd:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.6.6
+    pullPolicy: IfNotPresent
+
+  # Minimal persistent storage
+  persistence:
+    enabled: true
+    size: 1Gi
+    # Use default storage class
+    storageClass: ""
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# cert-manager integration - use self-signed certificates
+certManager:
+  enabled: true
+
+  issuer:
+    create: true
+    kind: Issuer
+    selfSigned: true
+
+  certificate:
+    duration: 2160h  # 90 days
+    renewBefore: 720h  # 30 days
+
+# RBAC enabled
+rbac:
+  create: true

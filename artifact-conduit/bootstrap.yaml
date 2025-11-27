@@ -1,0 +1,153 @@
+---
+# Bootstrap configuration for Artifact Conduit (ARC) component deployment
+# This file uses OCM K8s Toolkit to fetch and deploy the ResourceGraphDefinition
+# from the OCM component, enabling self-contained deployment with automatic
+# image localization when components are transferred between registries.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ocm-system
+---
+# Optional: Secret for private registry access
+# Uncomment and configure if using a private OCI registry
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: ocm-registry-credentials
+#   namespace: ocm-system
+# type: kubernetes.io/dockerconfigjson
+# data:
+#   .dockerconfigjson: <base64-encoded-docker-config>
+---
+# OCM Repository - Points to the OCI registry containing OCM components
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Repository
+metadata:
+  name: artifact-conduit-repo
+  namespace: ocm-system
+spec:
+  # Replace with your OCM registry URL
+  url: oci://ghcr.io/your-org/ocm-components
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Component - References the specific Artifact Conduit component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Component
+metadata:
+  name: artifact-conduit-component
+  namespace: ocm-system
+spec:
+  component: github.com/ocm/artifact-conduit
+  version: 0.1.0
+  repository:
+    name: artifact-conduit-repo
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Resource - Fetches the ResourceGraphDefinition from the component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: artifact-conduit-rgd
+  namespace: ocm-system
+spec:
+  resource: artifact-conduit-rgd
+  component:
+    name: artifact-conduit-component
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Deployer - Applies the RGD content to the cluster
+# Note: This is a cluster-scoped operation that creates the RGD CRD
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Deployer
+metadata:
+  name: artifact-conduit-rgd-deployer
+  namespace: ocm-system
+spec:
+  resource:
+    name: artifact-conduit-rgd
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# Example Artifact Conduit Bootstrap instance - Minimal configuration
+# This creates an actual deployment using the RGD
+apiVersion: v1alpha1
+kind: ArtifactConduitBootstrap
+metadata:
+  name: artifact-conduit-minimal
+  namespace: default
+spec:
+  # Registry configuration
+  registry:
+    url: ghcr.io  # Replace with your registry if using a private one
+
+  # Component reference
+  componentName: github.com/ocm/artifact-conduit
+  componentVersion: 0.1.0
+
+  # Deployment configuration
+  namespace: arc-system
+
+  # Use minimal profile for development/testing
+  deploymentProfile: minimal
+
+  # Replica configuration for minimal setup
+  apiServerReplicas: 1
+  controllerReplicas: 1
+  etcdReplicas: 1
+
+  # etcd storage configuration
+  etcdStorageSize: 1Gi
+  # etcdStorageClass: ""  # Leave empty to use default storage class
+
+  # Monitoring disabled for minimal profile
+  metricsEnabled: false
+  prometheusEnabled: false
+
+  # Optional: Reference to OCM config secret for private registries
+  # ocmConfigSecretName: ocm-registry-credentials
+---
+# Example Artifact Conduit Bootstrap instance - Production configuration
+# Uncomment to deploy a production-grade HA setup
+# apiVersion: v1alpha1
+# kind: ArtifactConduitBootstrap
+# metadata:
+#   name: artifact-conduit-production
+#   namespace: default
+# spec:
+#   # Registry configuration
+#   registry:
+#     url: ghcr.io
+#
+#   # Component reference
+#   componentName: github.com/ocm/artifact-conduit
+#   componentVersion: 0.1.0
+#
+#   # Deployment configuration
+#   namespace: arc-system
+#
+#   # Use production profile for HA setup
+#   deploymentProfile: production
+#
+#   # High availability with 3 replicas for each component
+#   apiServerReplicas: 3
+#   controllerReplicas: 3
+#   etcdReplicas: 3
+#
+#   # etcd storage configuration
+#   etcdStorageSize: 20Gi
+#   etcdStorageClass: fast-ssd  # Use your fast storage class
+#
+#   # Monitoring enabled for production
+#   metricsEnabled: true
+#   prometheusEnabled: true
+#
+#   # Optional: Reference to OCM config secret for private registries
+#   # ocmConfigSecretName: ocm-registry-credentials

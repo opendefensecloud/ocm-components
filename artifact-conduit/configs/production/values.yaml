@@ -1,0 +1,193 @@
+# Production Artifact Conduit Configuration
+# This configuration deploys a highly-available ARC setup suitable for:
+# - Production environments
+# - Mission-critical workloads
+# - High availability requirements
+# - Enterprise deployments
+
+# API Server configuration - 3 replicas for HA
+apiserver:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/opendefensecloud/arc-apiserver
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+    port: 443
+
+  # Pod anti-affinity for HA - spread replicas across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - arc
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - apiserver
+            topologyKey: kubernetes.io/hostname
+
+# Controller Manager configuration - 3 replicas with leader election
+controller:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/opendefensecloud/arc-controller-manager
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Enable leader election for HA
+  args:
+    leaderElect: true
+    metricsBindAddress: ":8443"
+    metricsSecure: true
+    enableHTTP2: false
+
+  # Enable metrics for production monitoring
+  metrics:
+    enabled: true
+
+    service:
+      type: ClusterIP
+      port: 8443
+
+    # Enable cert-manager for secure metrics
+    certManager:
+      enabled: true
+
+    # Enable ServiceMonitor for Prometheus integration
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      additionalLabels:
+        release: prometheus
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 200m
+      memory: 128Mi
+
+  # Pod anti-affinity for HA
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - arc
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - controller-manager
+            topologyKey: kubernetes.io/hostname
+
+# etcd configuration - 3 replicas for HA with increased storage
+etcd:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.6.6
+    pullPolicy: IfNotPresent
+
+  # Production-grade persistent storage
+  persistence:
+    enabled: true
+    size: 20Gi
+    # Use fast SSD storage class for production
+    # Uncomment and set to your high-performance storage class
+    # storageClass: "fast-ssd"
+    storageClass: ""
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  # Pod anti-affinity for HA
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - arc
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - etcd
+            topologyKey: kubernetes.io/hostname
+
+# cert-manager integration - use self-signed or configure CA/ACME issuer
+certManager:
+  enabled: true
+
+  issuer:
+    create: true
+    # Use ClusterIssuer for production to share across namespaces
+    kind: ClusterIssuer
+    selfSigned: true
+
+    # Alternative: Use CA issuer if you have an internal CA
+    # ca:
+    #   enabled: true
+    #   secretName: "ca-key-pair"
+
+    # Alternative: Use Let's Encrypt ACME for public certificates
+    # acme:
+    #   enabled: true
+    #   server: "https://acme-v02.api.letsencrypt.org/directory"
+    #   email: "admin@example.com"
+    #   privateKeySecretRef: "letsencrypt-production"
+
+  certificate:
+    duration: 8760h  # 1 year
+    renewBefore: 2160h  # 90 days
+
+# RBAC enabled
+rbac:
+  create: true
+
+# Additional production recommendations (uncomment as needed):
+
+# For production node selection (e.g., dedicated nodes)
+# commonLabels:
+#   environment: production
+
+# For production pod disruption budgets (add via additional manifests)
+# - Ensure at least 2 pods are available during voluntary disruptions
