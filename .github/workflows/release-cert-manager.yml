@@ -1,0 +1,324 @@
+name: Release cert-manager Component
+
+on:
+  push:
+    tags:
+      - 'cert-manager-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'cert-manager version to release (e.g., 1.19.2)'
+        required: true
+        type: string
+
+env:
+  COMPONENT_NAME: cert-manager
+  OCM_VERSION: 0.18.0
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#cert-manager-v}"  # Remove cert-manager-v prefix
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building cert-manager component version: $VERSION"
+
+      - name: Install OCM CLI
+        run: |
+          curl -sL https://github.com/open-component-model/ocm/releases/download/v${OCM_VERSION}/ocm-${OCM_VERSION}-linux-amd64.tar.gz | tar xz
+          sudo mv ocm /usr/local/bin/
+          ocm version
+
+      - name: Verify component structure
+        run: |
+          cd ${{ env.COMPONENT_NAME }}
+
+          # Check all required files exist
+          test -f component-constructor.yaml || (echo "Missing component-constructor.yaml" && exit 1)
+          test -f cert-manager-v1.19.2.tgz || (echo "Missing Helm chart" && exit 1)
+          test -f operator/cert-manager-manifest.yaml || (echo "Missing operator manifest" && exit 1)
+          test -f operator/values.yaml || (echo "Missing Helm values" && exit 1)
+          test -f configs/minimal/cert-manager.yaml || (echo "Missing minimal config" && exit 1)
+          test -f configs/production/cert-manager.yaml || (echo "Missing production config" && exit 1)
+          test -f rgd-template.yaml || (echo "Missing RGD template" && exit 1)
+          test -f bootstrap.yaml || (echo "Missing bootstrap.yaml" && exit 1)
+          test -f docs/HELM_CHART_CONFIG.md || (echo "Missing Helm chart docs" && exit 1)
+
+          echo "✓ All required files present"
+
+      - name: Update component version
+        run: |
+          cd ${{ env.COMPONENT_NAME }}
+          sed -i "s/version:.*/version: ${{ steps.version.outputs.version }}/" component-constructor.yaml
+          echo "Updated component version to ${{ steps.version.outputs.version }}"
+
+      - name: Build OCM component
+        run: |
+          cd ${{ env.COMPONENT_NAME }}
+
+          # Create Common Transport Archive
+          ocm add componentversions --create --file ../cert-manager-component.ctf component-constructor.yaml
+
+          echo "✓ OCM component built successfully"
+          ls -lh ../cert-manager-component.ctf
+
+      - name: Create offline package (tar.gz)
+        run: |
+          # Create offline package directory
+          mkdir -p offline-package/${{ env.COMPONENT_NAME }}
+
+          # Copy component archive
+          cp cert-manager-component.ctf offline-package/${{ env.COMPONENT_NAME }}/
+
+          # Copy installation files and documentation
+          cp -r ${{ env.COMPONENT_NAME }}/operator offline-package/${{ env.COMPONENT_NAME }}/
+          cp -r ${{ env.COMPONENT_NAME }}/configs offline-package/${{ env.COMPONENT_NAME }}/
+          cp -r ${{ env.COMPONENT_NAME }}/docs offline-package/${{ env.COMPONENT_NAME }}/
+          cp ${{ env.COMPONENT_NAME }}/cert-manager-v1.19.2.tgz offline-package/${{ env.COMPONENT_NAME }}/
+          cp ${{ env.COMPONENT_NAME }}/rgd-template.yaml offline-package/${{ env.COMPONENT_NAME }}/
+          cp ${{ env.COMPONENT_NAME }}/bootstrap.yaml offline-package/${{ env.COMPONENT_NAME }}/
+          cp ${{ env.COMPONENT_NAME }}/README.md offline-package/${{ env.COMPONENT_NAME }}/ 2>/dev/null || true
+
+          # Create installation script
+          cat > offline-package/${{ env.COMPONENT_NAME }}/install.sh <<'INSTALL_EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          echo "Installing cert-manager..."
+
+          # Check if namespace exists
+          kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+          # Install using Helm chart
+          if command -v helm >/dev/null 2>&1; then
+              echo "Installing using Helm..."
+              helm install cert-manager ./cert-manager-v1.19.2.tgz \
+                  --namespace cert-manager \
+                  --set crds.enabled=true \
+                  --set crds.keep=true \
+                  --wait \
+                  --timeout 10m
+          else
+              echo "Installing using manifests..."
+              kubectl apply --server-side -f operator/cert-manager-manifest.yaml
+          fi
+
+          echo "Waiting for cert-manager to be ready..."
+          kubectl wait --for=condition=Available deployment/cert-manager \
+              -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook \
+              -n cert-manager --timeout=300s
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector \
+              -n cert-manager --timeout=300s
+
+          echo "✓ cert-manager installed successfully"
+          echo ""
+          echo "To create issuers and certificates, see the configuration files in:"
+          echo "  Minimal (dev/test):  configs/minimal/cert-manager.yaml"
+          echo "  Production (HA):     configs/production/cert-manager.yaml"
+          echo ""
+          echo "For advanced configuration, see: docs/HELM_CHART_CONFIG.md"
+          INSTALL_EOF
+
+          chmod +x offline-package/${{ env.COMPONENT_NAME }}/install.sh
+
+          # Create package tarball
+          tar -czf cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz -C offline-package ${{ env.COMPONENT_NAME }}
+
+          echo "✓ Offline package created"
+          ls -lh cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz
+
+      - name: Generate checksums
+        run: |
+          sha256sum cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz > cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256
+          cat cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256
+
+      - name: Create release notes
+        run: |
+          cat > release-notes.md <<EOF
+          # cert-manager OCM Component v${{ steps.version.outputs.version }}
+
+          This release packages cert-manager v${{ steps.version.outputs.version }} as an OCM (Open Component Model) component for air-gapped and offline deployments.
+
+          ## What's Included
+
+          - **cert-manager** v${{ steps.version.outputs.version }}
+            - Controller deployment
+            - Webhook deployment
+            - CA Injector deployment
+            - Custom Resource Definitions (CRDs)
+            - RBAC configuration
+
+          - **Container Images**
+            - \`quay.io/jetstack/cert-manager-controller:v${{ steps.version.outputs.version }}\`
+            - \`quay.io/jetstack/cert-manager-webhook:v${{ steps.version.outputs.version }}\`
+            - \`quay.io/jetstack/cert-manager-cainjector:v${{ steps.version.outputs.version }}\`
+            - \`quay.io/jetstack/cert-manager-acmesolver:v${{ steps.version.outputs.version }}\`
+            - \`quay.io/jetstack/cert-manager-startupapicheck:v${{ steps.version.outputs.version }}\`
+
+          - **Configurations**
+            - Minimal configuration (single replica, self-signed issuer)
+            - Production HA configuration (multiple replicas, Let's Encrypt issuers)
+
+          - **Documentation**
+            - Component README
+            - Complete Helm chart configuration guide
+            - Issuer and Certificate examples
+
+          ## Features
+
+          - ✅ Automated TLS certificate management
+          - ✅ Let's Encrypt integration (HTTP-01 and DNS-01 challenges)
+          - ✅ Self-signed certificates for internal use
+          - ✅ CA-based certificate issuance
+          - ✅ Automatic certificate renewal
+          - ✅ Prometheus monitoring integration
+          - ✅ High availability with multiple replicas
+          - ✅ Gateway API support
+
+          ## Installation
+
+          ### For Air-Gapped Environments
+
+          1. Download the offline package:
+             \`\`\`bash
+             wget https://github.com/${{ github.repository }}/releases/download/cert-manager-v${{ steps.version.outputs.version }}/cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz
+             \`\`\`
+
+          2. Verify checksum:
+             \`\`\`bash
+             sha256sum -c cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256
+             \`\`\`
+
+          3. Extract and install:
+             \`\`\`bash
+             tar -xzf cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz
+             cd cert-manager
+             ./install.sh
+             \`\`\`
+
+          ### Using OCM CLI
+
+          \`\`\`bash
+          # Install OCM CLI from https://ocm.software/docs/cli-reference/install/
+
+          # Transfer component to your registry
+          ocm transfer ctf cert-manager-component.ctf oci://your-registry/ocm-components
+
+          # In air-gapped environment
+          ocm transfer oci://your-registry/ocm-components ctf cert-manager-airgapped.ctf
+          \`\`\`
+
+          ## Requirements
+
+          - Kubernetes 1.24+
+          - Helm 3.8+ (for Helm installation)
+
+          ## Quick Start
+
+          \`\`\`bash
+          # Install cert-manager
+          kubectl create namespace cert-manager
+          helm install cert-manager ./cert-manager-v${{ steps.version.outputs.version }}.tgz \\
+              --namespace cert-manager \\
+              --set crds.enabled=true
+
+          # Create a self-signed issuer
+          kubectl apply -f - <<ISSUER
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata:
+            name: selfsigned-issuer
+          spec:
+            selfSigned: {}
+          ISSUER
+
+          # Create a certificate
+          kubectl apply -f - <<CERT
+          apiVersion: cert-manager.io/v1
+          kind: Certificate
+          metadata:
+            name: example-cert
+            namespace: default
+          spec:
+            secretName: example-cert-tls
+            dnsNames:
+              - example.local
+            issuerRef:
+              name: selfsigned-issuer
+              kind: ClusterIssuer
+          CERT
+
+          # Check certificate status
+          kubectl get certificates -A
+          \`\`\`
+
+          ## Advanced Configuration
+
+          All Helm chart parameters can be customized. See \`docs/HELM_CHART_CONFIG.md\` in the package for:
+          - Complete controller configuration options
+          - Webhook and CA Injector settings
+          - Prometheus monitoring setup
+          - High availability configuration
+          - ClusterIssuer and Certificate examples
+
+          ## Documentation
+
+          - [Component README](https://github.com/${{ github.repository }}/blob/main/cert-manager/README.md)
+          - [Official cert-manager Documentation](https://cert-manager.io/docs/)
+          - [OCM Documentation](https://ocm.software/docs/)
+
+          ## Checksums
+
+          \`\`\`
+          $(cat cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256)
+          \`\`\`
+
+          ## Support
+
+          - Report issues: https://github.com/${{ github.repository }}/issues
+          - cert-manager issues: https://github.com/cert-manager/cert-manager/issues
+          - Slack: #cert-manager on Kubernetes Slack
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: cert-manager-v${{ steps.version.outputs.version }}
+          name: cert-manager v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz
+            cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **cert-manager component v${{ steps.version.outputs.version }} released successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Offline package: \`cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Checksum: \`cert-manager-${{ steps.version.outputs.version }}-offline.tar.gz.sha256\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release URL" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ github.repository }}/releases/tag/cert-manager-v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY

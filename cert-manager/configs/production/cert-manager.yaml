@@ -1,0 +1,403 @@
+---
+# Production cert-manager Configuration
+# This configuration provides a highly available, production-ready cert-manager installation.
+# Suitable for production environments requiring automated TLS certificate management.
+#
+# Prerequisites:
+# 1. Kubernetes 1.24+
+# 2. For Let's Encrypt: DNS provider credentials or HTTP-01 challenge support
+# 3. For monitoring: Prometheus Operator installed
+#
+# Features:
+# - High availability with multiple replicas
+# - Pod anti-affinity for zone distribution
+# - Pod disruption budgets
+# - Prometheus monitoring integration
+# - Production-grade resource limits
+# - Let's Encrypt staging and production issuers
+# - DNS-01 and HTTP-01 challenge solvers
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: cert-manager
+    environment: production
+
+---
+# Helm values for production deployment
+# Apply with: helm install cert-manager ./cert-manager-v1.19.2.tgz -n cert-manager -f this-file.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-manager-helm-values
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+data:
+  values.yaml: |
+    # Install and keep CRDs
+    crds:
+      enabled: true
+      keep: true
+
+    # Global settings
+    global:
+      leaderElection:
+        namespace: cert-manager
+
+    # High availability with multiple replicas
+    replicaCount: 2
+
+    # Controller configuration
+    controller:
+      # Production resources
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      # Pod anti-affinity for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - cert-manager
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - controller
+                topologyKey: topology.kubernetes.io/zone
+
+      # Topology spread for better distribution
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: cert-manager
+              app.kubernetes.io/component: controller
+
+    # Webhook configuration
+    webhook:
+      replicaCount: 2
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      # Webhook timeout
+      timeoutSeconds: 30
+
+      # Pod anti-affinity for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - cert-manager-webhook
+                topologyKey: topology.kubernetes.io/zone
+
+    # CA Injector configuration
+    cainjector:
+      enabled: true
+      replicaCount: 2
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      # Pod anti-affinity for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - cainjector
+                topologyKey: topology.kubernetes.io/zone
+
+    # Startup API Check configuration
+    startupapicheck:
+      enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+
+    # Prometheus monitoring enabled
+    prometheus:
+      enabled: true
+      servicemonitor:
+        enabled: true
+        prometheusInstance: default
+        labels:
+          release: prometheus
+        interval: 60s
+        scrapeTimeout: 30s
+
+    # Pod disruption budgets for HA
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+
+    # Security context
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+
+---
+# Self-signed ClusterIssuer for internal certificates
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+
+---
+# Self-signed CA Certificate for internal use
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: internal-ca
+  secretName: internal-ca-secret
+  duration: 87600h # 10 years
+  renewBefore: 8760h # 1 year
+  privateKey:
+    algorithm: ECDSA
+    size: 384
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# Internal CA ClusterIssuer
+# Use this for internal service-to-service TLS
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca-issuer
+spec:
+  ca:
+    secretName: internal-ca-secret
+
+---
+# Let's Encrypt Staging ClusterIssuer (HTTP-01)
+# Use this for testing Let's Encrypt integration
+# Replace email with your actual email address
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # Staging server for testing
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Email address for certificate notifications
+    email: admin@example.com  # CHANGE THIS
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      # HTTP-01 challenge solver using ingress
+      - http01:
+          ingress:
+            class: nginx  # Adjust based on your ingress controller
+            # For Traefik:
+            # class: traefik
+            # For Gateway API:
+            # ingressClassName: ""
+            # gatewayHTTPRoute:
+            #   parentRefs:
+            #     - name: my-gateway
+            #       namespace: default
+
+---
+# Let's Encrypt Production ClusterIssuer (HTTP-01)
+# Use this for production certificates
+# IMPORTANT: Only use after testing with staging issuer
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-production
+spec:
+  acme:
+    # Production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address for certificate notifications
+    email: admin@example.com  # CHANGE THIS
+    privateKeySecretRef:
+      name: letsencrypt-production-account-key
+    solvers:
+      # HTTP-01 challenge solver using ingress
+      - http01:
+          ingress:
+            class: nginx  # Adjust based on your ingress controller
+
+---
+# Example: Let's Encrypt with DNS-01 challenge (CloudFlare)
+# Uncomment and configure for DNS-01 challenges
+# This is required for wildcard certificates
+#
+# First create a secret with your CloudFlare API token:
+# kubectl create secret generic cloudflare-api-token-secret \
+#   --from-literal=api-token=<your-cloudflare-api-token> \
+#   -n cert-manager
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-dns01-cloudflare
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: admin@example.com  # CHANGE THIS
+#     privateKeySecretRef:
+#       name: letsencrypt-dns01-account-key
+#     solvers:
+#       - dns01:
+#           cloudflare:
+#             apiTokenSecretRef:
+#               name: cloudflare-api-token-secret
+#               key: api-token
+
+---
+# Example: Let's Encrypt with DNS-01 challenge (Route53)
+# Uncomment and configure for AWS Route53 DNS-01 challenges
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-dns01-route53
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: admin@example.com  # CHANGE THIS
+#     privateKeySecretRef:
+#       name: letsencrypt-dns01-route53-account-key
+#     solvers:
+#       - dns01:
+#           route53:
+#             region: us-east-1
+#             # Use IAM roles for service accounts (IRSA) - recommended
+#             # Or specify access key credentials:
+#             # accessKeyID: AKIAIOSFODNN7EXAMPLE
+#             # secretAccessKeySecretRef:
+#             #   name: route53-credentials-secret
+#             #   key: secret-access-key
+
+---
+# Example Production Certificate
+# Uncomment and modify for your application
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: app-tls-certificate
+#   namespace: default
+# spec:
+#   secretName: app-tls-secret
+#   duration: 2160h # 90 days
+#   renewBefore: 720h # 30 days before expiry
+#   subject:
+#     organizations:
+#       - My Organization
+#   commonName: app.example.com
+#   isCA: false
+#   privateKey:
+#     algorithm: RSA
+#     encoding: PKCS1
+#     size: 4096
+#   usages:
+#     - server auth
+#     - digital signature
+#     - key encipherment
+#   dnsNames:
+#     - app.example.com
+#     - www.app.example.com
+#   issuerRef:
+#     name: letsencrypt-production
+#     kind: ClusterIssuer
+#     group: cert-manager.io
+
+---
+# Network Policy for cert-manager (optional but recommended)
+# Restricts traffic to only necessary communications
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cert-manager-network-policy
+  namespace: cert-manager
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: cert-manager
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow webhook traffic from API server
+    - from: []
+      ports:
+        - protocol: TCP
+          port: 10250
+  egress:
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS for ACME servers and DNS APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow communication with Kubernetes API
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6443

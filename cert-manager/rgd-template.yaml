@@ -1,0 +1,445 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: cert-manager-bootstrap
+  namespace: default
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: CertManagerBootstrap
+    spec:
+      # Component reference configuration
+      registry:
+        url:
+          type: string
+          default: "ghcr.io"
+      componentName:
+        type: string
+        default: "github.com/ocm/cert-manager"
+      componentVersion:
+        type: string
+        default: "1.19.2"
+
+      # Deployment configuration
+      namespace:
+        type: string
+        default: "cert-manager"
+
+      # Configuration profile selection
+      deploymentProfile:
+        type: string
+        enum: ["minimal", "production"]
+        default: "minimal"
+
+      # Replica configuration (overrides profile defaults)
+      controllerReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+      webhookReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+      cainjectorReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+
+      # Feature configuration
+      installCRDs:
+        type: boolean
+        default: true
+      keepCRDs:
+        type: boolean
+        default: true
+
+      # Monitoring configuration
+      monitoringEnabled:
+        type: boolean
+        default: false
+
+      # Issuer configuration
+      createSelfSignedIssuer:
+        type: boolean
+        default: true
+      createLetsEncryptIssuers:
+        type: boolean
+        default: false
+      letsEncryptEmail:
+        type: string
+        default: ""
+      ingressClass:
+        type: string
+        default: "nginx"
+
+      # Credentials configuration
+      ocmConfigSecretName:
+        type: string
+        default: ""
+
+  resources:
+    # OCM Repository resource
+    - id: ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Repository
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        namespace: ${schema.spec.namespace}
+      spec:
+        url: oci://${schema.spec.registry.url}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Component resource
+    - id: ocm-component
+      dependsOn:
+        - ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Component
+      metadata:
+        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        namespace: ${schema.spec.namespace}
+      spec:
+        component: ${schema.spec.componentName}
+        version: ${schema.spec.componentVersion}
+        repository:
+          name: ${resources.ocm-repository.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Helm Chart
+    - id: helm-chart-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-chart
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Controller Image
+    - id: controller-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-controller-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-controller-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Webhook Image
+    - id: webhook-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-webhook-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-webhook-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - CA Injector Image
+    - id: cainjector-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-cainjector-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-cainjector-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - ACME Solver Image
+    - id: acmesolver-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-acmesolver-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-acmesolver-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Startup API Check Image
+    - id: startupapicheck-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-startupapicheck-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-startupapicheck-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # Namespace
+    - id: cert-manager-namespace
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ${schema.spec.namespace}
+        labels:
+          app.kubernetes.io/name: cert-manager
+          app.kubernetes.io/instance: cert-manager
+
+    # FluxCD OCIRepository for Helm Chart
+    - id: helm-oci-repository
+      dependsOn:
+        - cert-manager-namespace
+        - helm-chart-resource
+      apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      metadata:
+        name: cert-manager-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        url: ${resources.helm-chart-resource.status.localization.ociArtifact.url}
+        ref:
+          tag: ${resources.helm-chart-resource.status.localization.ociArtifact.tag}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # FluxCD HelmRelease for cert-manager
+    - id: cert-manager-helm-release
+      dependsOn:
+        - helm-oci-repository
+        - controller-image-resource
+        - webhook-image-resource
+        - cainjector-image-resource
+        - acmesolver-image-resource
+        - startupapicheck-image-resource
+      apiVersion: helm.toolkit.fluxcd.io/v2beta1
+      kind: HelmRelease
+      metadata:
+        name: cert-manager
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        chart:
+          spec:
+            chart: ./
+            sourceRef:
+              kind: OCIRepository
+              name: ${resources.helm-oci-repository.metadata.name}
+            interval: 10m
+        values:
+          # CRD configuration
+          crds:
+            enabled: ${schema.spec.installCRDs}
+            keep: ${schema.spec.keepCRDs}
+
+          # Replica counts based on profile or override
+          replicaCount: ${schema.spec.deploymentProfile == "production" && schema.spec.controllerReplicas == 1 ? 2 : schema.spec.controllerReplicas}
+
+          # Controller image localization
+          image:
+            repository: ${resources.controller-image-resource.status.localization.ociArtifact.repository}
+            tag: ${resources.controller-image-resource.status.localization.ociArtifact.tag}
+
+          # Webhook configuration
+          webhook:
+            replicaCount: ${schema.spec.deploymentProfile == "production" && schema.spec.webhookReplicas == 1 ? 2 : schema.spec.webhookReplicas}
+            image:
+              repository: ${resources.webhook-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.webhook-image-resource.status.localization.ociArtifact.tag}
+
+          # CA Injector configuration
+          cainjector:
+            enabled: true
+            replicaCount: ${schema.spec.deploymentProfile == "production" && schema.spec.cainjectorReplicas == 1 ? 2 : schema.spec.cainjectorReplicas}
+            image:
+              repository: ${resources.cainjector-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.cainjector-image-resource.status.localization.ociArtifact.tag}
+
+          # ACME Solver image
+          acmesolver:
+            image:
+              repository: ${resources.acmesolver-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.acmesolver-image-resource.status.localization.ociArtifact.tag}
+
+          # Startup API Check configuration
+          startupapicheck:
+            enabled: true
+            image:
+              repository: ${resources.startupapicheck-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.startupapicheck-image-resource.status.localization.ociArtifact.tag}
+
+          # Prometheus monitoring
+          prometheus:
+            enabled: ${schema.spec.monitoringEnabled}
+            servicemonitor:
+              enabled: ${schema.spec.monitoringEnabled}
+
+          # Pod disruption budget for production
+          podDisruptionBudget:
+            enabled: ${schema.spec.deploymentProfile == "production"}
+            minAvailable: 1
+
+          # Production-specific settings
+          affinity: ${schema.spec.deploymentProfile == "production" ? {
+            "podAntiAffinity": {
+              "preferredDuringSchedulingIgnoredDuringExecution": [{
+                "weight": 100,
+                "podAffinityTerm": {
+                  "labelSelector": {
+                    "matchExpressions": [{
+                      "key": "app.kubernetes.io/name",
+                      "operator": "In",
+                      "values": ["cert-manager"]
+                    }]
+                  },
+                  "topologyKey": "topology.kubernetes.io/zone"
+                }
+              }]
+            }
+          } : {}}
+
+          # Resource limits based on profile
+          resources: ${schema.spec.deploymentProfile == "production" ? {
+            "requests": {
+              "cpu": "50m",
+              "memory": "64Mi"
+            },
+            "limits": {
+              "cpu": "500m",
+              "memory": "256Mi"
+            }
+          } : {
+            "requests": {
+              "cpu": "10m",
+              "memory": "32Mi"
+            },
+            "limits": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            }
+          }}
+
+    # Self-signed ClusterIssuer (optional)
+    - id: selfsigned-issuer
+      dependsOn:
+        - cert-manager-helm-release
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: selfsigned-issuer
+      spec:
+        selfSigned: {}
+      readyWhen:
+        - ${schema.spec.createSelfSignedIssuer}
+
+    # Self-signed CA Certificate
+    - id: selfsigned-ca-cert
+      dependsOn:
+        - selfsigned-issuer
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: selfsigned-ca
+        namespace: ${schema.spec.namespace}
+      spec:
+        isCA: true
+        commonName: selfsigned-ca
+        secretName: selfsigned-ca-secret
+        duration: 87600h
+        renewBefore: 8760h
+        privateKey:
+          algorithm: ECDSA
+          size: 256
+        issuerRef:
+          name: selfsigned-issuer
+          kind: ClusterIssuer
+          group: cert-manager.io
+      readyWhen:
+        - ${schema.spec.createSelfSignedIssuer}
+
+    # CA ClusterIssuer
+    - id: ca-issuer
+      dependsOn:
+        - selfsigned-ca-cert
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: selfsigned-ca-issuer
+      spec:
+        ca:
+          secretName: selfsigned-ca-secret
+      readyWhen:
+        - ${schema.spec.createSelfSignedIssuer}
+
+    # Let's Encrypt Staging Issuer (optional)
+    - id: letsencrypt-staging-issuer
+      dependsOn:
+        - cert-manager-helm-release
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-staging
+      spec:
+        acme:
+          server: https://acme-staging-v02.api.letsencrypt.org/directory
+          email: ${schema.spec.letsEncryptEmail}
+          privateKeySecretRef:
+            name: letsencrypt-staging-account-key
+          solvers:
+            - http01:
+                ingress:
+                  class: ${schema.spec.ingressClass}
+      readyWhen:
+        - ${schema.spec.createLetsEncryptIssuers && schema.spec.letsEncryptEmail != ""}
+
+    # Let's Encrypt Production Issuer (optional)
+    - id: letsencrypt-production-issuer
+      dependsOn:
+        - cert-manager-helm-release
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-production
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: ${schema.spec.letsEncryptEmail}
+          privateKeySecretRef:
+            name: letsencrypt-production-account-key
+          solvers:
+            - http01:
+                ingress:
+                  class: ${schema.spec.ingressClass}
+      readyWhen:
+        - ${schema.spec.createLetsEncryptIssuers && schema.spec.letsEncryptEmail != ""}

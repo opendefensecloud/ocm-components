@@ -1,0 +1,168 @@
+---
+# Minimal cert-manager Configuration
+# This configuration provides a basic, working cert-manager installation with minimal overhead.
+# Suitable for development, testing, and non-critical environments.
+#
+# Prerequisites:
+# 1. Kubernetes 1.24+
+#
+# Features:
+# - Single replica for each component
+# - Self-signed ClusterIssuer included
+# - CRDs installed and kept on uninstall
+# - Minimal resource allocation
+# - No monitoring enabled
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: cert-manager
+
+---
+# Helm values for minimal deployment
+# Apply with: helm install cert-manager ./cert-manager-v1.19.2.tgz -n cert-manager -f this-file.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-manager-helm-values
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+data:
+  values.yaml: |
+    # Install CRDs
+    crds:
+      enabled: true
+      keep: true
+
+    # Single replica for development
+    replicaCount: 1
+
+    # Controller configuration
+    controller:
+      # Minimal resources for development
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+    # Webhook configuration
+    webhook:
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+    # CA Injector configuration
+    cainjector:
+      enabled: true
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+    # Startup API Check configuration
+    startupapicheck:
+      enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+
+    # Prometheus monitoring disabled for minimal setup
+    prometheus:
+      enabled: false
+
+    # Pod disruption budget disabled for single replica
+    podDisruptionBudget:
+      enabled: false
+
+---
+# Self-signed ClusterIssuer for testing
+# This issuer generates self-signed certificates for development and testing
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+
+---
+# Self-signed CA Certificate
+# This creates a CA that can be used to issue certificates within the cluster
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: selfsigned-ca
+  secretName: selfsigned-ca-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+# CA ClusterIssuer using the self-signed CA
+# Use this issuer to generate certificates signed by the self-signed CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-ca-issuer
+spec:
+  ca:
+    secretName: selfsigned-ca-secret
+
+---
+# Example Certificate (optional - demonstrates usage)
+# Uncomment to create a test certificate
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: example-cert
+#   namespace: default
+# spec:
+#   secretName: example-cert-tls
+#   duration: 2160h # 90d
+#   renewBefore: 360h # 15d
+#   subject:
+#     organizations:
+#       - example
+#   commonName: example.local
+#   isCA: false
+#   privateKey:
+#     algorithm: RSA
+#     encoding: PKCS1
+#     size: 2048
+#   usages:
+#     - server auth
+#     - client auth
+#   dnsNames:
+#     - example.local
+#     - www.example.local
+#   issuerRef:
+#     name: selfsigned-ca-issuer
+#     kind: ClusterIssuer
+#     group: cert-manager.io

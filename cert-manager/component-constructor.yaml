@@ -1,0 +1,137 @@
+components:
+  - name: github.com/ocm/cert-manager
+    version: 1.19.2
+    provider:
+      name: cert-manager.io
+    labels:
+      - name: app.kubernetes.io/name
+        value: cert-manager
+      - name: app.kubernetes.io/component
+        value: certificate-management
+      - name: app.kubernetes.io/part-of
+        value: cert-manager
+    resources:
+      # ResourceGraphDefinition for KRO bootstrapping
+      - name: cert-manager-rgd
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: rgd-template.yaml
+
+      # cert-manager Helm Chart (official)
+      - name: cert-manager-chart
+        type: helmChart
+        version: 1.19.2
+        relation: local
+        input:
+          type: helm
+          path: cert-manager-v1.19.2.tgz
+
+      # cert-manager Operator Manifest (alternative deployment)
+      - name: cert-manager-manifest
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: operator/cert-manager-manifest.yaml
+
+      # cert-manager Helm Chart Values (reference)
+      - name: cert-manager-values
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: operator/values.yaml
+
+      # cert-manager Controller Image
+      - name: cert-manager-controller-image
+        type: ociImage
+        version: 1.19.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/cert-manager-controller:v1.19.2
+
+      # cert-manager Webhook Image
+      - name: cert-manager-webhook-image
+        type: ociImage
+        version: 1.19.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/cert-manager-webhook:v1.19.2
+
+      # cert-manager CA Injector Image
+      - name: cert-manager-cainjector-image
+        type: ociImage
+        version: 1.19.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/cert-manager-cainjector:v1.19.2
+
+      # cert-manager ACME Solver Image
+      - name: cert-manager-acmesolver-image
+        type: ociImage
+        version: 1.19.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/cert-manager-acmesolver:v1.19.2
+
+      # cert-manager Startup API Check Image
+      - name: cert-manager-startupapicheck-image
+        type: ociImage
+        version: 1.19.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/jetstack/cert-manager-startupapicheck:v1.19.2
+
+      # Minimal Configuration (development/testing)
+      - name: cert-manager-minimal-config
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: configs/minimal/cert-manager.yaml
+
+      # Production Configuration (HA, monitoring, etc.)
+      - name: cert-manager-production-config
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: configs/production/cert-manager.yaml
+
+      # Helm Chart Reference (for advanced users)
+      - name: helm-chart-info
+        type: yaml
+        version: 1.19.2
+        relation: local
+        input:
+          type: file
+          path: docs/HELM_CHART_CONFIG.md
+
+    sources:
+      - name: cert-manager-source
+        type: git
+        version: 1.19.2
+        access:
+          type: github
+          repoUrl: github.com/cert-manager/cert-manager
+          ref: v1.19.2
+
+      - name: cert-manager-helm-charts-source
+        type: git
+        version: 1.19.2
+        access:
+          type: github
+          repoUrl: github.com/cert-manager/cert-manager
+          ref: v1.19.2

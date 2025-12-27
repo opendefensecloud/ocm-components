@@ -1,0 +1,163 @@
+---
+# Bootstrap configuration for cert-manager component deployment
+# This file uses OCM K8s Toolkit to fetch and deploy the ResourceGraphDefinition
+# from the OCM component, enabling self-contained deployment with automatic
+# image localization when components are transferred between registries.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ocm-system
+---
+# Optional: Secret for private registry access
+# Uncomment and configure if using a private OCI registry
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: ocm-registry-credentials
+#   namespace: ocm-system
+# type: kubernetes.io/dockerconfigjson
+# data:
+#   .dockerconfigjson: <base64-encoded-docker-config>
+---
+# OCM Repository - Points to the OCI registry containing OCM components
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Repository
+metadata:
+  name: cert-manager-repo
+  namespace: ocm-system
+spec:
+  # Replace with your OCM registry URL
+  url: oci://ghcr.io/your-org/ocm-components
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Component - References the specific cert-manager component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Component
+metadata:
+  name: cert-manager-component
+  namespace: ocm-system
+spec:
+  component: github.com/ocm/cert-manager
+  version: 1.19.2
+  repository:
+    name: cert-manager-repo
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Resource - Fetches the ResourceGraphDefinition from the component
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: cert-manager-rgd
+  namespace: ocm-system
+spec:
+  resource: cert-manager-rgd
+  component:
+    name: cert-manager-component
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# OCM Deployer - Applies the RGD content to the cluster
+# Note: This is a cluster-scoped operation that creates the RGD CRD
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Deployer
+metadata:
+  name: cert-manager-rgd-deployer
+  namespace: ocm-system
+spec:
+  resource:
+    name: cert-manager-rgd
+  # Optional: Reference secret for private registry access
+  # secretRef:
+  #   name: ocm-registry-credentials
+---
+# Example CertManagerBootstrap instance - Minimal configuration
+# This creates an actual deployment using the RGD
+apiVersion: v1alpha1
+kind: CertManagerBootstrap
+metadata:
+  name: cert-manager-minimal
+  namespace: default
+spec:
+  # Registry configuration
+  registry:
+    url: ghcr.io  # Replace with your registry if using a private one
+
+  # Component reference
+  componentName: github.com/ocm/cert-manager
+  componentVersion: 1.19.2
+
+  # Deployment configuration
+  namespace: cert-manager
+
+  # Use minimal profile for development/testing
+  deploymentProfile: minimal
+
+  # Replica configuration (defaults for minimal)
+  controllerReplicas: 1
+  webhookReplicas: 1
+  cainjectorReplicas: 1
+
+  # CRD configuration
+  installCRDs: true
+  keepCRDs: true
+
+  # Monitoring disabled for minimal profile
+  monitoringEnabled: false
+
+  # Issuer configuration
+  createSelfSignedIssuer: true
+  createLetsEncryptIssuers: false
+  # letsEncryptEmail: ""
+  # ingressClass: nginx
+
+  # Optional: Reference to OCM config secret for private registries
+  # ocmConfigSecretName: ocm-registry-credentials
+---
+# Example CertManagerBootstrap instance - Production configuration
+# Uncomment to deploy a production-grade HA installation
+# apiVersion: v1alpha1
+# kind: CertManagerBootstrap
+# metadata:
+#   name: cert-manager-production
+#   namespace: default
+# spec:
+#   # Registry configuration
+#   registry:
+#     url: ghcr.io
+#
+#   # Component reference
+#   componentName: github.com/ocm/cert-manager
+#   componentVersion: 1.19.2
+#
+#   # Deployment configuration
+#   namespace: cert-manager
+#
+#   # Use production profile for HA setup
+#   deploymentProfile: production
+#
+#   # High availability replica counts
+#   controllerReplicas: 2
+#   webhookReplicas: 2
+#   cainjectorReplicas: 2
+#
+#   # CRD configuration
+#   installCRDs: true
+#   keepCRDs: true
+#
+#   # Monitoring enabled
+#   monitoringEnabled: true
+#
+#   # Issuer configuration
+#   createSelfSignedIssuer: true
+#   createLetsEncryptIssuers: true
+#   letsEncryptEmail: admin@example.com  # CHANGE THIS
+#   ingressClass: nginx  # Adjust based on your ingress controller
+#
+#   # Optional: Reference to OCM config secret for private registries
+#   # ocmConfigSecretName: ocm-registry-credentials

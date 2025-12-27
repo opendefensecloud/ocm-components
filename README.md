@@ -61,6 +61,35 @@ kubectl apply --server-side -f cloudnative-pg/operator/cnpg-operator.yml
 kubectl apply -f cloudnative-pg/configs/minimal/cluster.yaml
 ```
 
+### cert-manager (v1.19.2)
+
+TLS Certificate Management for Kubernetes
+
+- **Status**: ✅ Ready
+- **Operator**: Official cert-manager
+- **License**: Apache 2.0
+- **CNCF**: Graduated Project
+- **Configurations**:
+  - Minimal (single replica, self-signed issuers)
+  - Production (HA with 2 replicas, Let's Encrypt issuers, monitoring)
+- **Documentation**: [cert-manager/README.md](cert-manager/README.md)
+- **Features**: Let's Encrypt, self-signed, CA-based issuers, automatic renewal
+
+Quick Start:
+
+```bash
+# Create namespace
+kubectl create namespace cert-manager
+
+# Install cert-manager
+helm install cert-manager cert-manager/cert-manager-v1.19.2.tgz \
+    --namespace cert-manager \
+    --set crds.enabled=true
+
+# Create a self-signed issuer
+kubectl apply -f cert-manager/configs/minimal/cert-manager.yaml
+```
+
 ### Artifact Conduit (ARC) (v0.1.0)
 
 Kubernetes-native Artifact Gateway for Secure Cross-Zone Transfers
@@ -94,12 +123,10 @@ helm install artifact-conduit artifact-conduit/arc-0.1.0.tgz \
 
 See [suggested-components.md](suggested-components.md) for a list of additional components that are candidates for inclusion in this monorepo based on common dependencies and use cases.
 
-High Priority:
+Medium Priority:
 
-- CloudNativePG (PostgreSQL operator)
-- cert-manager (TLS certificate management)
 - External Secrets Operator
-- Prometheus Operator
+- Prometheus Operator (kube-prometheus-stack)
 - Traefik Ingress Controller
 
 ## Repository Structure
@@ -114,6 +141,20 @@ ocm-monorepo/
 │   ├── tests/                # Test scripts
 │   ├── component-constructor.yaml  # OCM component descriptor
 │   └── README.md             # Component documentation
+├── cloudnative-pg/             # CloudNativePG component
+│   ├── operator/              # Operator manifests
+│   ├── configs/               # Configuration examples
+│   ├── tests/                # Test scripts
+│   └── README.md             # Component documentation
+├── cert-manager/               # cert-manager component
+│   ├── operator/              # Operator manifests
+│   ├── configs/               # Configuration examples
+│   ├── docs/                 # Helm chart configuration guide
+│   ├── tests/                # Test scripts
+│   ├── rgd-template.yaml     # KRO ResourceGraphDefinition
+│   ├── bootstrap.yaml        # OCM bootstrap configuration
+│   └── README.md             # Component documentation
+├── artifact-conduit/           # Artifact Conduit (ARC) component
 ├── .github/
 │   └── workflows/            # CI/CD pipelines for releases
 ├── suggested-components.md   # List of suggested components
