@@ -1,6 +1,6 @@
 components:
   - name: opendefense.cloud/arc
-    version: 0.1.0
+    version: v0.0.0-override
     provider:
       name: opendefense.cloud
     labels:
@@ -14,7 +14,7 @@ components:
       # ResourceGraphDefinition for KRO bootstrapping
       - name: artifact-conduit-rgd
         type: yaml
-        version: 0.1.0
+        version: v0.0.0-override
         relation: local
         input:
           type: file
@@ -23,7 +23,7 @@ components:
       # Artifact Conduit (ARC) Helm Chart (official)
       - name: arc-chart
         type: helmChart
-        version: 0.1.0
+        version: v0.1.4
         relation: external
         access:
           type: ociArtifact
@@ -32,20 +32,20 @@ components:
       # API Server Container Image
       - name: arc-apiserver-image
         type: ociImage
-        version: 0.1.0
+        version: v0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/arc-apiserver:latest
+          imageReference: ghcr.io/opendefensecloud/arc-apiserver:v0.2.0
 
       # Controller Manager Container Image
       - name: arc-controller-manager-image
         type: ociImage
-        version: 0.1.0
+        version: v0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/arc-controller-manager:latest
+          imageReference: ghcr.io/opendefensecloud/arc-controller-manager:v0.2.0
 
       # etcd Container Image
       - name: etcd-image
@@ -59,7 +59,7 @@ components:
       # Minimal Configuration (Single instance, development)
       - name: arc-minimal-config
         type: yaml
-        version: 0.1.0
+        version: v0.0.0-override
         relation: local
         input:
           type: file
@@ -68,26 +68,17 @@ components:
       # Production Configuration (HA with replicas)
       - name: arc-production-config
         type: yaml
-        version: 0.1.0
+        version: v0.0.0-override
         relation: local
         input:
           type: file
           path: configs/production/values.yaml
 
-      # Helm Chart Reference (for advanced users)
-      - name: helm-chart-info
-        type: yaml
-        version: 0.1.0
-        relation: local
-        input:
-          type: file
-          path: docs/HELM_CHART_CONFIG.md
-
     sources:
       - name: arc-source
         type: git
-        version: 0.1.0
+        version: v0.2.0
         access:
           type: github
           repoUrl: github.com/opendefensecloud/artifact-conduit
-          ref: main
+          ref: v0.2.0
