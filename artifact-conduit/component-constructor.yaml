@@ -63,7 +63,7 @@ components:
         relation: local
         input:
           type: file
-          path: configs/minimal/values.yaml
+          path: minimal-values.yaml
 
       # Production Configuration (HA with replicas)
       - name: arc-production-config
@@ -72,7 +72,7 @@ components:
         relation: local
         input:
           type: file
-          path: configs/production/values.yaml
+          path: production-values.yaml
 
     sources:
       - name: arc-source
