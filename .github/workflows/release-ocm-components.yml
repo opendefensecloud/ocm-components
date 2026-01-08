@@ -36,20 +36,15 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Replace version in component-constructor.yaml
-        run: |
-          cd ${{ matrix.component }}
-          sed -i "s/v0\.0\.0-override/${{ steps.version.outputs.version }}/g" component-constructor.yaml
-
       - name: Build OCM Component
         run: |
           cd ${{ matrix.component }}
-          ocm add componentversion --create --file ./ctf component-constructor.yaml
+          ocm add componentversion --version ${{ steps.version.outputs.version }} --create --file ./ctf component-constructor.yaml
 
       - name: Push to GHCR
         run: |
           cd ${{ matrix.component }}
-          ocm transfer ctf --copy-resources ./ctf ghcr.io/${{ github.repository_owner }}
+          ocm transfer ctf --copy-local-resources ./ctf ghcr.io/${{ github.repository_owner }}
 
       - name: Clean up
         if: always()

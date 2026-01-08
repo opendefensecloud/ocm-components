@@ -1,6 +1,5 @@
 components:
   - name: opendefense.cloud/arc
-    version: v0.0.0-override
     provider:
       name: opendefense.cloud
     labels:
@@ -14,7 +13,6 @@ components:
       # ResourceGraphDefinition for KRO bootstrapping
       - name: artifact-conduit-rgd
         type: yaml
-        version: v0.0.0-override
         relation: local
         input:
           type: file
@@ -59,7 +57,6 @@ components:
       # Minimal Configuration (Single instance, development)
       - name: arc-minimal-config
         type: yaml
-        version: v0.0.0-override
         relation: local
         input:
           type: file
@@ -68,17 +65,19 @@ components:
       # Production Configuration (HA with replicas)
       - name: arc-production-config
         type: yaml
-        version: v0.0.0-override
         relation: local
         input:
           type: file
           path: production-values.yaml
 
-    sources:
-      - name: arc-source
-        type: git
-        version: v0.2.0
-        access:
-          type: github
-          repoUrl: github.com/opendefensecloud/artifact-conduit
-          ref: v0.2.0
+    # TODO: add sources back, there were some issues in CI (probably some issues in YAML):
+    # Error: opendefense.cloud/arc:v26.1-rc.1: transferring source 0: failed to validate commit: commit is not a SHA
+    # Error: component transport: opendefense.cloud/arc:v26.1-rc.1: transferring source 0: failed to validate commit: commit is not a SHA
+    # sources:
+    #   - name: arc-source
+    #     type: git
+    #     version: v0.2.0
+    #     access:
+    #       type: github
+    #       repoUrl: github.com/opendefensecloud/artifact-conduit
+    #       ref: v0.2.0
