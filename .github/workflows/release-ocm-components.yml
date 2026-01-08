@@ -49,8 +49,7 @@ jobs:
       - name: Push to GHCR
         run: |
           cd ${{ matrix.component }}
-          COMPONENT_NAME=$(basename ${{ matrix.component }})
-          ocm transfer ctf --copy-resources ./ctf ghcr.io/${{ github.repository_owner }}/ocm-components/${COMPONENT_NAME}:${{ steps.version.outputs.version }}
+          ocm transfer ctf --copy-resources ./ctf ghcr.io/${{ github.repository_owner }}
 
       - name: Clean up
         if: always()

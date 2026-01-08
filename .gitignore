@@ -45,3 +45,5 @@ tmp/
 deep-docs/
 
 *.coverprofile
+
+ctf/
