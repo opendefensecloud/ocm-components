@@ -1,5 +1,5 @@
 components:
-  - name: github.com/ocm/artifact-conduit
+  - name: opendefense.cloud/arc
     version: 0.1.0
     provider:
       name: opendefense.cloud
@@ -24,24 +24,15 @@ components:
       - name: arc-chart
         type: helmChart
         version: 0.1.0
-        relation: local
-        input:
-          type: helm
-          path: arc-0.1.0.tgz
-
-      # Artifact Conduit Helm Chart Values (reference)
-      - name: arc-values
-        type: yaml
-        version: 0.1.0
-        relation: local
-        input:
-          type: file
-          path: charts/arc/values.yaml
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/charts/arc:0.1.4
 
       # API Server Container Image
       - name: arc-apiserver-image
         type: ociImage
-        version: latest
+        version: 0.1.0
         relation: external
         access:
           type: ociArtifact
@@ -50,7 +41,7 @@ components:
       # Controller Manager Container Image
       - name: arc-controller-manager-image
         type: ociImage
-        version: latest
+        version: 0.1.0
         relation: external
         access:
           type: ociArtifact
