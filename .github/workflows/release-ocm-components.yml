@@ -1,0 +1,59 @@
+name: Release OCM Components
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-push:
+    runs-on: arc-scale-set
+    permissions:
+      packages: write # Push to ghcr.io
+    strategy:
+      matrix:
+        component:
+          - ./artifact-conduit
+          # - ./cloudnative-pg
+          # - ./keycloak
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up OCM CLI
+        uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Replace version in component-constructor.yaml
+        run: |
+          cd ${{ matrix.component }}
+          sed -i "s/v0\.0\.0-override/${{ steps.version.outputs.version }}/g" component-constructor.yaml
+
+      - name: Build OCM Component
+        run: |
+          cd ${{ matrix.component }}
+          ocm add componentversion --create --file ./ctf component-constructor.yaml
+
+      - name: Push to GHCR
+        run: |
+          cd ${{ matrix.component }}
+          COMPONENT_NAME=$(basename ${{ matrix.component }})
+          ocm transfer ctf --copy-resources ./ctf ghcr.io/${{ github.repository_owner }}/ocm-components/${COMPONENT_NAME}:${{ steps.version.outputs.version }}
+
+      - name: Clean up
+        if: always()
+        run: |
+          cd ${{ matrix.component }}
+          rm -rf ./ctf
