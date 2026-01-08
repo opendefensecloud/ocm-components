@@ -1,6 +1,5 @@
 components:
-  - name: github.com/ocm/cloudnative-pg
-    version: 1.27.1
+  - name: opendefense.cloud/cnpg
     provider:
       name: cloudnative-pg.io
     labels:
@@ -14,7 +13,6 @@ components:
       # ResourceGraphDefinition for KRO bootstrapping
       - name: cloudnative-pg-rgd
         type: yaml
-        version: 1.27.1
         relation: local
         input:
           type: file
@@ -23,47 +21,22 @@ components:
       # CloudNativePG Operator Helm Chart (official)
       - name: cnpg-operator-chart
         type: helmChart
-        version: 0.26.1
-        relation: local
-        input:
+        version: 0.27.0
+        relation: external
+        access:
           type: helm
-          path: cloudnative-pg-0.26.1.tgz
+          helmChart: cloudnative-pg:0.27.0
+          helmRepository: https://cloudnative-pg.github.io/charts
 
       # CloudNativePG Cluster Helm Chart (official)
       - name: cnpg-cluster-chart
         type: helmChart
-        version: 0.0.11
-        relation: local
-        input:
+        version: 0.5.0
+        relation: external
+        access:
           type: helm
-          path: cluster-0.0.11.tgz
-
-      # CloudNativePG Operator Manifest (legacy/alternative deployment)
-      - name: cnpg-operator-manifest
-        type: yaml
-        version: 1.27.1
-        relation: local
-        input:
-          type: file
-          path: operator/cnpg-operator.yml
-
-      # CloudNativePG Operator Helm Chart Values (reference)
-      - name: cnpg-operator-values
-        type: yaml
-        version: 1.27.1
-        relation: local
-        input:
-          type: file
-          path: operator/values.yaml
-
-      # CloudNativePG Cluster Helm Chart Values (reference)
-      - name: cnpg-cluster-values
-        type: yaml
-        version: 1.27.1
-        relation: local
-        input:
-          type: file
-          path: operator/cluster-values.yaml
+          helmChart: cluster:0.5.0
+          helmRepository: https://cloudnative-pg.github.io/charts
 
       # CloudNativePG Operator Container Image
       - name: cnpg-operator-image
@@ -95,43 +68,33 @@ components:
       # Minimal Configuration (Single instance, development)
       - name: cnpg-minimal-config
         type: yaml
-        version: 1.27.1
         relation: local
         input:
           type: file
-          path: configs/minimal/cluster.yaml
+          path: cluster-minimal.yaml
 
       # Production Configuration (HA with replicas, backup, monitoring)
       - name: cnpg-production-config
         type: yaml
-        version: 1.27.1
         relation: local
         input:
           type: file
-          path: configs/production/cluster.yaml
+          path: cluster-production.yaml
 
-      # Helm Chart Reference (for advanced users)
-      - name: helm-chart-info
-        type: yaml
-        version: 1.27.1
-        relation: local
-        input:
-          type: file
-          path: docs/HELM_CHART_CONFIG.md
+    # TODO: see also comment in ../artifact-conduit/component-constructor.yaml
+    # sources:
+    #   - name: cnpg-operator-source
+    #     type: git
+    #     version: 1.27.1
+    #     access:
+    #       type: github
+    #       repoUrl: github.com/cloudnative-pg/cloudnative-pg
+    #       ref: release-1.27
 
-    sources:
-      - name: cnpg-operator-source
-        type: git
-        version: 1.27.1
-        access:
-          type: github
-          repoUrl: github.com/cloudnative-pg/cloudnative-pg
-          ref: release-1.27
-
-      - name: cnpg-helm-charts-source
-        type: git
-        version: 1.27.1
-        access:
-          type: github
-          repoUrl: github.com/cloudnative-pg/charts
-          ref: main
+    #   - name: cnpg-helm-charts-source
+    #     type: git
+    #     version: 1.27.1
+    #     access:
+    #       type: github
+    #       repoUrl: github.com/cloudnative-pg/charts
+    #       ref: main

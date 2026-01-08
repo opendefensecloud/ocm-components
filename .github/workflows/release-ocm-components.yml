@@ -14,7 +14,7 @@ jobs:
       matrix:
         component:
           - ./artifact-conduit
-          # - ./cloudnative-pg
+          - ./cloudnative-pg
           # - ./keycloak
     steps:
       - name: Checkout repository
