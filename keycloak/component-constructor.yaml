@@ -1,6 +1,5 @@
 components:
-  - name: github.com/ocm/keycloak
-    version: 26.4.5
+  - name: opendefense.cloud/keycloak
     provider:
       name: keycloak.org
     labels:
@@ -79,11 +78,11 @@ components:
           path: configs/production/keycloak.yml
           mediaType: application/x-yaml
 
-    sources:
-      - name: keycloak-operator-manifests
-        type: git
-        version: 26.4.5
-        access:
-          type: github
-          repoUrl: github.com/keycloak/keycloak-k8s-resources
-          ref: 26.4.5
+    # sources:
+    #   - name: keycloak-operator-manifests
+    #     type: git
+    #     version: 26.4.5
+    #     access:
+    #       type: github
+    #       repoUrl: github.com/keycloak/keycloak-k8s-resources
+    #       ref: 26.4.5

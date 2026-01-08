@@ -15,7 +15,7 @@ jobs:
         component:
           - ./artifact-conduit
           - ./cloudnative-pg
-          # - ./keycloak
+          - ./keycloak
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
