@@ -25,7 +25,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/charts/arc:0.1.4
+          imageReference: ghcr.io/opendefensecloud/charts/arc:v0.2.1
 
       # API Server Container Image
       - name: arc-apiserver-image
