@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "matchStringsStrategy": "any",
+      "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
+      "matchStrings": ["imageReference: (?<depName>.*):(?<currentValue>.*)"],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "matchStringsStrategy": "any",
+      "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
+      "matchStrings": [
+        "helmChart: (?<depName>.*):(?<currentValue>.*)\\s*helmRepository: (?<registryUrl>.*)",
+        "helmChart: (?<depName>.*)\\s*helmRepository: (?<registryUrl>.*)\\s*type: helm\\s*version: (?<currentValue>.*)"
+      ],
+      "datasourceTemplate": "helm"
+    }
+  ]
+}
