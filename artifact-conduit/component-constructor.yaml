@@ -52,7 +52,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/coreos/etcd:v3.6.7
+          imageReference: quay.io/coreos/etcd:v3.6.8
 
       # Minimal Configuration (Single instance, development)
       - name: arc-minimal-config
