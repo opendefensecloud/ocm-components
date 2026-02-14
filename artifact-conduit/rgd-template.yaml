@@ -15,7 +15,7 @@ spec:
           default: "ghcr.io"
       componentName:
         type: string
-        default: "github.com/ocm/artifact-conduit"
+        default: "opendefense.cloud/arc"
       componentVersion:
         type: string
         default: "0.1.0"
@@ -77,7 +77,7 @@ spec:
       apiVersion: delivery.ocm.software/v1alpha1
       kind: Repository
       metadata:
-        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-")}
         namespace: ${schema.spec.namespace}
       spec:
         url: oci://${schema.spec.registry.url}
@@ -91,13 +91,13 @@ spec:
       apiVersion: delivery.ocm.software/v1alpha1
       kind: Component
       metadata:
-        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+        name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         namespace: ${schema.spec.namespace}
       spec:
         component: ${schema.spec.componentName}
         version: ${schema.spec.componentVersion}
         repository:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-")}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 
@@ -113,7 +113,7 @@ spec:
       spec:
         resource: arc-chart
         component:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 
@@ -129,7 +129,7 @@ spec:
       spec:
         resource: arc-apiserver-image
         component:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 
@@ -145,7 +145,7 @@ spec:
       spec:
         resource: arc-controller-manager-image
         component:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 
@@ -161,7 +161,7 @@ spec:
       spec:
         resource: etcd-image
         component:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 
@@ -177,7 +177,7 @@ spec:
       spec:
         resource: arc-${schema.spec.deploymentProfile}-config
         component:
-          name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-") + "-component"}
+          name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-") + "-component"}
         secretRef:
           name: ${schema.spec.ocmConfigSecretName}
 

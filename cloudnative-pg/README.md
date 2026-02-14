@@ -18,21 +18,12 @@ This directory contains the OCM (Open Component Model) component for CloudNative
 
 ```
 cloudnative-pg/
-├── operator/                    # CloudNativePG operator manifests
-│   ├── cnpg-operator.yml       # Operator deployment
-│   ├── values.yaml             # Operator Helm chart values
-│   └── cluster-values.yaml     # Cluster Helm chart values
-├── configs/
-│   ├── minimal/                 # Minimal configuration
-│   │   └── cluster.yaml        # Single instance for dev/test
-│   └── production/              # Production configuration
-│       └── cluster.yaml        # HA with 3 replicas, backups, monitoring
-├── examples/                    # Usage examples
-├── tests/                       # Test scripts
-├── docs/
-│   └── HELM_CHART_CONFIG.md    # Complete Helm chart configuration guide
-├── component-constructor.yaml   # OCM component descriptor
-└── README.md                    # This file
+├── cluster-minimal.yaml          # Minimal cluster configuration (dev/test)
+├── cluster-production.yaml       # Production cluster configuration (HA)
+├── bootstrap.yaml                # KRO bootstrap configuration
+├── component-constructor.yaml    # OCM component descriptor
+├── rgd-template.yaml             # ResourceGraphDefinition for KRO
+└── README.md                     # This file
 ```
 
 ## Quick Start
@@ -250,19 +241,22 @@ For manual deployment using Kubernetes manifests:
 1. **Install the CloudNativePG Operator:**
 
    ```bash
-   kubectl apply --server-side -f operator/cnpg-operator.yml
+   # Install the operator using the official Helm chart
+   helm repo add cnpg https://cloudnative-pg.github.io/charts
+   helm upgrade --install cnpg cnpg/cloudnative-pg \
+     --namespace cnpg-system --create-namespace --wait
    ```
 
 2. **Deploy PostgreSQL Cluster (Minimal):**
 
    ```bash
-   kubectl apply -f configs/minimal/cluster.yaml
+   kubectl apply -f cluster-minimal.yaml
    ```
 
    Or for production:
 
    ```bash
-   kubectl apply -f configs/production/cluster.yaml
+   kubectl apply -f cluster-production.yaml
    ```
 
 3. **Get connection credentials:**
@@ -289,7 +283,7 @@ For manual deployment using Kubernetes manifests:
 
 ### Minimal Configuration
 
-**File**: [`configs/minimal/cluster.yaml`](configs/minimal/cluster.yaml)
+**File**: [`cluster-minimal.yaml`](cluster-minimal.yaml)
 
 **Features**:
 - Single PostgreSQL instance
@@ -308,12 +302,12 @@ For manual deployment using Kubernetes manifests:
 
 **Quick Deploy**:
 ```bash
-kubectl apply -f configs/minimal/cluster.yaml
+kubectl apply -f cluster-minimal.yaml
 ```
 
 ### Production Configuration
 
-**File**: [`configs/production/cluster.yaml`](configs/production/cluster.yaml)
+**File**: [`cluster-production.yaml`](cluster-production.yaml)
 
 **Features**:
 - 3 PostgreSQL instances (HA)
@@ -361,19 +355,14 @@ kubectl apply -f configs/minimal/cluster.yaml
 
 4. Deploy:
    ```bash
-   kubectl apply -f configs/production/cluster.yaml
+   kubectl apply -f cluster-production.yaml
    ```
 
 ## Advanced Configuration
 
 ### Using Helm Charts
 
-CloudNativePG provides official Helm charts for both the operator and clusters. See [`docs/HELM_CHART_CONFIG.md`](docs/HELM_CHART_CONFIG.md) for complete documentation on:
-
-- All available operator parameters
-- All available cluster parameters
-- Custom configuration examples
-- Hybrid OCM + Helm approach
+CloudNativePG provides official Helm charts for both the operator and clusters. See the [upstream documentation](https://cloudnative-pg.io/documentation/) for complete parameter references.
 
 **Example - Custom Helm deployment**:
 
@@ -392,7 +381,7 @@ helm install cnpg cnpg/cloudnative-pg \
 # Deploy cluster with custom values
 helm install my-db cnpg/cluster \
   --namespace my-app \
-  --values configs/production/cluster.yaml \
+  --values cluster-production.yaml \
   --set cluster.instances=5 \
   --set cluster.storage.size=500Gi
 ```
@@ -429,24 +418,14 @@ This ensures that when you transfer the component from `registry-a.com` to `regi
 
 ### Testing the RGD Deployment
 
-A comprehensive test script is provided to verify the RGD deployment:
+To verify the RGD deployment:
 
-```bash
-cd tests
-./test-rgd-bootstrap.sh
-```
-
-This test:
-
-- Creates a kind cluster
-- Installs OCM K8s Toolkit, FluxCD, and KRO
-- Builds and transfers the OCM component
-- Deploys CloudNativePG via RGD bootstrap
-- Verifies all resources are created correctly
-- Tests PostgreSQL connectivity
-- Validates image localization
-
-See [tests/test-rgd-bootstrap.sh](tests/test-rgd-bootstrap.sh) for details.
+1. Create a kind cluster with OCM K8s Toolkit, FluxCD, and KRO installed
+2. Build and transfer the OCM component to a local registry
+3. Apply the `bootstrap.yaml` to deploy CloudNativePG via RGD bootstrap
+4. Verify all resources are created correctly
+5. Test PostgreSQL connectivity
+6. Validate image localization
 
 ## OCM Component
 
@@ -681,11 +660,9 @@ Adjust based on your workload and available resources.
 - External Secrets Operator for credential management
 - cert-manager for TLS certificates
 
-See [`../suggested-components.md`](../suggested-components.md) for details.
+See the project root README for details on suggested components.
 
 ## Testing
-
-See [`tests/`](tests/) directory for test scripts.
 
 ### Local Testing with kind
 
@@ -693,9 +670,16 @@ See [`tests/`](tests/) directory for test scripts.
 # Create kind cluster
 kind create cluster --name cnpg-test
 
-# Run tests
-cd tests
-./test-minimal.sh
+# Install operator
+helm repo add cnpg https://cloudnative-pg.github.io/charts
+helm upgrade --install cnpg cnpg/cloudnative-pg \
+  --namespace cnpg-system --create-namespace --wait
+
+# Deploy minimal cluster
+kubectl apply -f cluster-minimal.yaml
+
+# Verify
+kubectl wait --for=condition=Ready cluster/pg-minimal --timeout=300s
 ```
 
 ## Upgrading
