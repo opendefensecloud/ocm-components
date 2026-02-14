@@ -6,19 +6,71 @@ on:
       - 'v*'
 
 jobs:
-  build-and-push:
-    runs-on: arc-scale-set
-    permissions:
-      packages: write # Push to ghcr.io
+  # ---------------------------------------------------------------------------
+  # Validate component descriptors before building
+  # ---------------------------------------------------------------------------
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
-        component:
-          - ./artifact-conduit
-          - ./cloudnative-pg
-          - ./keycloak
+        include:
+          - name: artifact-conduit
+            path: ./artifact-conduit
+          - name: cloudnative-pg
+            path: ./cloudnative-pg
+          - name: keycloak
+            path: ./keycloak
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Set up OCM CLI
+        uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate OCM component
+        run: |
+          cd "${{ matrix.path }}"
+          ocm add componentversion \
+            --version "${{ steps.version.outputs.version }}" \
+            --create \
+            --file ./ctf \
+            component-constructor.yaml
+
+      - name: Verify resources resolve
+        run: |
+          cd "${{ matrix.path }}"
+          ocm get resources ./ctf
+
+      - name: Clean up
+        if: always()
+        run: rm -rf "${{ matrix.path }}/ctf"
+
+  # ---------------------------------------------------------------------------
+  # Build CTFs, push to GHCR, and upload artifacts
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    needs: validate
+    runs-on: arc-scale-set
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: artifact-conduit
+            path: ./artifact-conduit
+          - name: cloudnative-pg
+            path: ./cloudnative-pg
+          - name: keycloak
+            path: ./keycloak
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up OCM CLI
         uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
@@ -32,22 +84,72 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Build OCM Component
         run: |
-          cd ${{ matrix.component }}
-          ocm add componentversion --version ${{ steps.version.outputs.version }} --create --file ./ctf component-constructor.yaml
+          cd "${{ matrix.path }}"
+          ocm add componentversion \
+            --version "${{ steps.version.outputs.version }}" \
+            --create \
+            --file ./ctf \
+            component-constructor.yaml
 
       - name: Push to GHCR
         run: |
-          cd ${{ matrix.component }}
+          cd "${{ matrix.path }}"
           ocm transfer ctf --copy-local-resources ./ctf ghcr.io/${{ github.repository_owner }}
+
+      - name: Upload CTF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctf-${{ matrix.name }}
+          path: ${{ matrix.path }}/ctf
+          retention-days: 5
 
       - name: Clean up
         if: always()
+        run: rm -rf "${{ matrix.path }}/ctf"
+
+  # ---------------------------------------------------------------------------
+  # Create GitHub Release with CTF archives and checksums
+  # ---------------------------------------------------------------------------
+  create-release:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Download all CTF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package CTF archives
         run: |
-          cd ${{ matrix.component }}
-          rm -rf ./ctf
+          mkdir -p release
+          VERSION="${{ steps.version.outputs.version }}"
+          for component in artifact-conduit cloudnative-pg keycloak; do
+            tar -czf "release/${component}-ctf-${VERSION}.tar.gz" \
+              -C "artifacts/ctf-${component}" .
+          done
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum -- *.tar.gz > checksums.sha256
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --title "Release $VERSION" \
+            --generate-notes \
+            release/*

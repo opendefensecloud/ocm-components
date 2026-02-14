@@ -1,0 +1,323 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which component directories changed
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      cloudnative-pg: ${{ steps.changes.outputs.cloudnative-pg }}
+      keycloak: ${{ steps.changes.outputs.keycloak }}
+      artifact-conduit: ${{ steps.changes.outputs.artifact-conduit }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect changed paths (PR only)
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cloudnative-pg:
+              - 'cloudnative-pg/**'
+            keycloak:
+              - 'keycloak/**'
+            artifact-conduit:
+              - 'artifact-conduit/**'
+
+      - name: Resolve changes
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            {
+              echo "cloudnative-pg=${{ steps.filter.outputs.cloudnative-pg }}"
+              echo "keycloak=${{ steps.filter.outputs.keycloak }}"
+              echo "artifact-conduit=${{ steps.filter.outputs.artifact-conduit }}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # push to main or workflow_dispatch → test everything
+            {
+              echo "cloudnative-pg=true"
+              echo "keycloak=true"
+              echo "artifact-conduit=true"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Validate OCM component descriptors (always runs for all 3 components)
+  # ---------------------------------------------------------------------------
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: artifact-conduit
+            path: ./artifact-conduit
+          - component: cloudnative-pg
+            path: ./cloudnative-pg
+          - component: keycloak
+            path: ./keycloak
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up OCM CLI
+        uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+
+      - name: Build OCM component (dry-run)
+        run: |
+          cd "${{ matrix.path }}"
+          ocm add componentversion \
+            --version 0.0.0-ci \
+            --create \
+            --file ./ctf \
+            component-constructor.yaml
+
+      - name: Verify resources resolve
+        run: |
+          cd "${{ matrix.path }}"
+          ocm get resources ./ctf
+
+      - name: Clean up CTF
+        if: always()
+        run: rm -rf "${{ matrix.path }}/ctf"
+
+  # ---------------------------------------------------------------------------
+  # Integration test: CloudNative-PG
+  # ---------------------------------------------------------------------------
+  test-cloudnative-pg:
+    needs: [detect-changes, validate]
+    if: needs.detect-changes.outputs.cloudnative-pg == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cnpg-test
+
+      - name: Install CloudNativePG operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg-operator cnpg/cloudnative-pg \
+            --namespace cnpg-system \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+
+      - name: Apply minimal cluster config
+        run: kubectl apply -f cloudnative-pg/cluster-minimal.yaml
+
+      - name: Wait for Cluster to become ready
+        run: |
+          echo "Waiting for CNPG cluster pods to start..."
+          kubectl wait --for=condition=Ready pod \
+            -l cnpg.io/cluster=postgres-minimal \
+            -n postgres \
+            --timeout=300s
+
+      - name: Verify database connectivity
+        run: |
+          kubectl exec -n postgres postgres-minimal-1 -- \
+            psql -U app -d app -c "SELECT 1 AS health_check;"
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -A
+          echo "--- CNPG Cluster ---"
+          kubectl get cluster -n postgres -o yaml || true
+          echo "--- Events ---"
+          kubectl get events -n postgres --sort-by='.lastTimestamp' || true
+
+  # ---------------------------------------------------------------------------
+  # Integration test: Keycloak
+  # ---------------------------------------------------------------------------
+  test-keycloak:
+    needs: [detect-changes, validate]
+    if: needs.detect-changes.outputs.keycloak == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: keycloak-test
+
+      - name: Apply CRDs
+        run: |
+          kubectl apply -f keycloak/operator/keycloaks-crd.yml
+          kubectl apply -f keycloak/operator/keycloakrealmimports-crd.yml
+
+      - name: Deploy Keycloak operator
+        run: |
+          kubectl apply -f keycloak/operator/operator.yml
+          kubectl wait --for=condition=Available deployment/keycloak-operator \
+            -n keycloak \
+            --timeout=120s
+
+      - name: Generate self-signed TLS certificate
+        run: |
+          openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+            -keyout /tmp/tls.key -out /tmp/tls.crt \
+            -subj "/CN=keycloak.local"
+
+      - name: Apply minimal Keycloak config
+        run: kubectl apply -f keycloak/configs/minimal/keycloak.yml
+
+      - name: Override placeholder TLS secret with real cert
+        run: |
+          kubectl create secret tls keycloak-tls-secret \
+            --cert=/tmp/tls.crt --key=/tmp/tls.key \
+            -n keycloak \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Wait for ephemeral PostgreSQL
+        run: |
+          kubectl wait --for=condition=Available deployment/postgres-db \
+            -n keycloak \
+            --timeout=120s
+
+      - name: Wait for Keycloak pod
+        run: |
+          echo "Waiting for Keycloak pods to appear..."
+          for i in $(seq 1 30); do
+            if kubectl get pods -n keycloak -l app=keycloak --no-headers 2>/dev/null | grep -q .; then
+              break
+            fi
+            echo "  attempt $i/30 — no pods yet"
+            sleep 10
+          done
+          kubectl wait --for=condition=Ready pod \
+            -l app=keycloak \
+            -n keycloak \
+            --timeout=300s
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -A
+          echo "--- Keycloak CR ---"
+          kubectl get keycloak -n keycloak -o yaml || true
+          echo "--- Deployments ---"
+          kubectl get deployments -n keycloak -o wide || true
+          echo "--- Events ---"
+          kubectl get events -n keycloak --sort-by='.lastTimestamp' || true
+          echo "--- Operator logs ---"
+          kubectl logs deployment/keycloak-operator -n keycloak --tail=100 || true
+
+  # ---------------------------------------------------------------------------
+  # Integration test: Artifact Conduit
+  # ---------------------------------------------------------------------------
+  test-artifact-conduit:
+    needs: [detect-changes, validate]
+    if: needs.detect-changes.outputs.artifact-conduit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: arc-test
+
+      - name: Install cert-manager
+        run: |
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+          echo "Waiting for cert-manager deployments..."
+          kubectl wait --for=condition=Available deployment/cert-manager \
+            -n cert-manager --timeout=120s
+          kubectl wait --for=condition=Available deployment/cert-manager-webhook \
+            -n cert-manager --timeout=120s
+          kubectl wait --for=condition=Available deployment/cert-manager-cainjector \
+            -n cert-manager --timeout=120s
+
+      - name: Login to GHCR (Helm OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Install Artifact Conduit via Helm
+        run: |
+          helm install arc \
+            oci://ghcr.io/opendefensecloud/charts/arc \
+            --version v0.2.1 \
+            --namespace arc-system \
+            --create-namespace \
+            -f artifact-conduit/minimal-values.yaml \
+            --wait \
+            --timeout 5m
+
+      - name: Verify deployments
+        run: |
+          kubectl wait --for=condition=Available deployment \
+            -l app.kubernetes.io/instance=arc \
+            -n arc-system \
+            --timeout=180s
+          echo "--- Running pods ---"
+          kubectl get pods -n arc-system
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -A
+          echo "--- Deployments ---"
+          kubectl get deployments -n arc-system -o wide || true
+          echo "--- Events ---"
+          kubectl get events -n arc-system --sort-by='.lastTimestamp' || true
+          echo "--- Helm status ---"
+          helm status arc -n arc-system || true
+
+  # ---------------------------------------------------------------------------
+  # Gate job for branch protection (single required status check)
+  # ---------------------------------------------------------------------------
+  ci-success:
+    if: always()
+    needs:
+      - detect-changes
+      - validate
+      - test-cloudnative-pg
+      - test-keycloak
+      - test-artifact-conduit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate job results
+        run: |
+          results=( \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.validate.result }}" \
+            "${{ needs.test-cloudnative-pg.result }}" \
+            "${{ needs.test-keycloak.result }}" \
+            "${{ needs.test-artifact-conduit.result }}" \
+          )
+          for r in "${results[@]}"; do
+            if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
+              echo "::error::Job failed or was cancelled: $r"
+              exit 1
+            fi
+          done
+          echo "All jobs passed (success or skipped)."
