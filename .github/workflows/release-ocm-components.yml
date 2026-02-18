@@ -10,7 +10,7 @@ jobs:
   # Validate component descriptors before building
   # ---------------------------------------------------------------------------
   validate:
-    runs-on: ubuntu-latest
+    runs-on: arc-scale-test
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -116,7 +116,7 @@ jobs:
   # ---------------------------------------------------------------------------
   create-release:
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: arc-scale-set
     permissions:
       contents: write
     steps:

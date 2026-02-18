@@ -1,0 +1,52 @@
+name: "Test: CloudNative-PG"
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: arc-scale-set
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cnpg-test
+
+      - name: Install CloudNativePG operator
+        run: |
+          helm repo add cnpg https://cloudnative-pg.github.io/charts
+          helm repo update
+          helm upgrade --install cnpg-operator cnpg/cloudnative-pg \
+            --namespace cnpg-system \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+
+      - name: Apply minimal cluster config
+        run: kubectl apply -f cloudnative-pg/cluster-minimal.yaml
+
+      - name: Wait for Cluster to become ready
+        run: |
+          echo "Waiting for CNPG cluster pods to start..."
+          kubectl wait --for=condition=Ready pod \
+            -l cnpg.io/cluster=postgres-minimal \
+            -n postgres \
+            --timeout=300s
+
+      - name: Verify database connectivity
+        run: |
+          kubectl exec -n postgres postgres-minimal-1 -- \
+            psql -U app -d app -c "SELECT 1 AS health_check;"
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -A
+          echo "--- CNPG Cluster ---"
+          kubectl get cluster -n postgres -o yaml || true
+          echo "--- Events ---"
+          kubectl get events -n postgres --sort-by='.lastTimestamp' || true
