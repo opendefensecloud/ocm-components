@@ -56,7 +56,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/keycloak/keycloak:26.5.4
+          imageReference: quay.io/keycloak/keycloak:26.5.5
 
       # Minimal Configuration
       - name: keycloak-minimal-config
