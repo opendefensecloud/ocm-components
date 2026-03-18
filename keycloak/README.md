@@ -29,8 +29,6 @@ keycloak/
 │   ├── QUICK_REFERENCE.md      # Quick lookup tables
 │   ├── PARAMETER_TREE.txt      # Visual parameter hierarchy
 │   └── ARCHITECTURE.md         # Architecture overview
-├── examples/                    # Usage examples
-├── tests/                       # Test scripts
 ├── component-constructor.yaml   # OCM component descriptor
 └── README.md                    # This file
 ```
@@ -337,7 +335,7 @@ The following components are recommended for production deployments:
 - **External Secrets Operator**: Secure secret management
 - **Prometheus Operator**: Monitoring and metrics
 
-See [`../suggested-components.md`](../suggested-components.md) for details.
+See the project root README for details on suggested components.
 
 ## Monitoring
 
@@ -462,16 +460,22 @@ The operator will perform a rolling update automatically.
 
 ## Testing
 
-See [`tests/`](tests/) directory for test scripts.
-
 ### Local Testing with kind
 
 ```bash
 # Create kind cluster
 kind create cluster --name keycloak-test
 
-# Run tests
-./tests/test-minimal.sh
+# Install operator
+kubectl apply -f operator/keycloaks-crd.yml
+kubectl apply -f operator/keycloakrealmimports-crd.yml
+kubectl apply -f operator/operator.yml
+
+# Deploy minimal config
+kubectl apply -f configs/minimal/keycloak.yml
+
+# Verify
+kubectl wait --for=condition=Ready keycloak/keycloak -n keycloak --timeout=300s
 ```
 
 ## References

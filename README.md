@@ -54,11 +54,13 @@ PostgreSQL Operator for Kubernetes
 Quick Start:
 
 ```bash
-# Install operator
-kubectl apply --server-side -f cloudnative-pg/operator/cnpg-operator.yml
+# Install operator via Helm
+helm repo add cnpg https://cloudnative-pg.github.io/charts
+helm upgrade --install cnpg cnpg/cloudnative-pg \
+  --namespace cnpg-system --create-namespace --wait
 
 # Deploy minimal cluster
-kubectl apply -f cloudnative-pg/configs/minimal/cluster.yaml
+kubectl apply -f cloudnative-pg/cluster-minimal.yaml
 ```
 
 ### Artifact Conduit (ARC) (v0.1.0)
@@ -85,18 +87,15 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/lat
 helm install artifact-conduit artifact-conduit/arc-0.1.0.tgz \
   --namespace arc-system \
   --create-namespace \
-  --values artifact-conduit/configs/minimal/values.yaml
+  --values artifact-conduit/minimal-values.yaml
 ```
 
 **Note**: Artifact Conduit is an early-stage project (356+ commits, 8 contributors) not yet recommended for production without thorough testing. It provides a declarative way to transfer artifacts across security boundaries with automated scanning and policy compliance.
 
 ## Suggested Components
 
-See [suggested-components.md](suggested-components.md) for a list of additional components that are candidates for inclusion in this monorepo based on common dependencies and use cases.
+The following are candidates for inclusion in this monorepo based on common dependencies and use cases:
 
-High Priority:
-
-- CloudNativePG (PostgreSQL operator)
 - cert-manager (TLS certificate management)
 - External Secrets Operator
 - Prometheus Operator
@@ -105,20 +104,30 @@ High Priority:
 ## Repository Structure
 
 ```text
-ocm-monorepo/
-├── keycloak/                   # Keycloak component
+ocm-components/
+├── artifact-conduit/          # Artifact Conduit (ARC) component
+│   ├── bootstrap.yaml         # KRO bootstrap configuration
+│   ├── component-constructor.yaml
+│   ├── rgd-template.yaml      # ResourceGraphDefinition for KRO
+│   ├── minimal-values.yaml
+│   └── production-values.yaml
+├── cloudnative-pg/            # CloudNativePG component
+│   ├── bootstrap.yaml
+│   ├── component-constructor.yaml
+│   ├── rgd-template.yaml
+│   ├── cluster-minimal.yaml
+│   └── cluster-production.yaml
+├── keycloak/                  # Keycloak component
 │   ├── operator/              # Operator manifests and CRDs
 │   ├── configs/               # Configuration examples
-│   │   ├── minimal/          # Dev/test configuration
-│   │   └── production/       # Production HA configuration
-│   ├── tests/                # Test scripts
-│   ├── component-constructor.yaml  # OCM component descriptor
-│   └── README.md             # Component documentation
+│   │   ├── minimal/
+│   │   └── production/
+│   ├── component-constructor.yaml
+│   └── README.md
 ├── .github/
-│   └── workflows/            # CI/CD pipelines for releases
-├── suggested-components.md   # List of suggested components
-├── CLAUDE.md                 # Development guidelines
-└── README.md                 # This file
+│   └── workflows/             # CI/CD pipelines for releases
+├── CLAUDE.md                  # Development guidelines
+└── README.md                  # This file
 ```
 
 ## Working with OCM Components
@@ -177,13 +186,6 @@ When adding a new component:
 - kind (for local testing)
 
 ## Testing
-
-Each component includes test scripts for validation:
-
-```bash
-cd keycloak/tests
-./test-minimal.sh
-```
 
 Tests are designed to run on local kind clusters and verify:
 
