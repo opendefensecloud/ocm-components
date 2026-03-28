@@ -40,7 +40,7 @@ metadata:
   name: artifact-conduit-component
   namespace: ocm-system
 spec:
-  component: github.com/ocm/artifact-conduit
+  component: opendefense.cloud/arc
   version: 0.1.0
   repository:
     name: artifact-conduit-repo
@@ -89,7 +89,7 @@ spec:
     url: ghcr.io  # Replace with your registry if using a private one
 
   # Component reference
-  componentName: github.com/ocm/artifact-conduit
+  componentName: opendefense.cloud/arc
   componentVersion: 0.1.0
 
   # Deployment configuration
@@ -127,7 +127,7 @@ spec:
 #     url: ghcr.io
 #
 #   # Component reference
-#   componentName: github.com/ocm/artifact-conduit
+#   componentName: opendefense.cloud/arc
 #   componentVersion: 0.1.0
 #
 #   # Deployment configuration

@@ -1,0 +1,79 @@
+name: "Test: Keycloak"
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: arc-scale-set
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: keycloak-test
+
+      - name: Apply CRDs
+        run: |
+          kubectl apply -f keycloak/operator/keycloaks-crd.yml
+          kubectl apply -f keycloak/operator/keycloakrealmimports-crd.yml
+
+      - name: Deploy Keycloak operator
+        run: |
+          kubectl apply -f keycloak/operator/operator.yml
+          kubectl wait --for=condition=Available deployment/keycloak-operator \
+            -n keycloak \
+            --timeout=120s
+
+      - name: Generate self-signed TLS certificate
+        run: |
+          openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+            -keyout /tmp/tls.key -out /tmp/tls.crt \
+            -subj "/CN=keycloak.local"
+
+      - name: Apply minimal Keycloak config
+        run: kubectl apply -f keycloak/configs/minimal/keycloak.yml
+
+      - name: Override placeholder TLS secret with real cert
+        run: |
+          kubectl create secret tls keycloak-tls-secret \
+            --cert=/tmp/tls.crt --key=/tmp/tls.key \
+            -n keycloak \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Wait for ephemeral PostgreSQL
+        run: |
+          kubectl wait --for=condition=Available deployment/postgres-db \
+            -n keycloak \
+            --timeout=120s
+
+      - name: Wait for Keycloak pod
+        run: |
+          echo "Waiting for Keycloak pods to appear..."
+          for i in $(seq 1 30); do
+            if kubectl get pods -n keycloak -l app=keycloak --no-headers 2>/dev/null | grep -q .; then
+              break
+            fi
+            echo "  attempt $i/30 — no pods yet"
+            sleep 10
+          done
+          kubectl wait --for=condition=Ready pod \
+            -l app=keycloak \
+            -n keycloak \
+            --timeout=300s
+
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -A
+          echo "--- Keycloak CR ---"
+          kubectl get keycloak -n keycloak -o yaml || true
+          echo "--- Deployments ---"
+          kubectl get deployments -n keycloak -o wide || true
+          echo "--- Events ---"
+          kubectl get events -n keycloak --sort-by='.lastTimestamp' || true
+          echo "--- Operator logs ---"
+          kubectl logs deployment/keycloak-operator -n keycloak --tail=100 || true

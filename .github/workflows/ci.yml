@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which component directories changed
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    runs-on: arc-scale-set
+    permissions:
+      pull-requests: read
+    outputs:
+      cloudnative-pg: ${{ steps.changes.outputs.cloudnative-pg }}
+      keycloak: ${{ steps.changes.outputs.keycloak }}
+      artifact-conduit: ${{ steps.changes.outputs.artifact-conduit }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect changed paths (PR only)
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cloudnative-pg:
+              - 'cloudnative-pg/**'
+              - '.github/workflows/test-cloudnative-pg.yml'
+            keycloak:
+              - 'keycloak/**'
+              - '.github/workflows/test-keycloak.yml'
+            artifact-conduit:
+              - 'artifact-conduit/**'
+              - '.github/workflows/test-artifact-conduit.yml'
+
+      - name: Resolve changes
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            {
+              echo "cloudnative-pg=${{ steps.filter.outputs.cloudnative-pg }}"
+              echo "keycloak=${{ steps.filter.outputs.keycloak }}"
+              echo "artifact-conduit=${{ steps.filter.outputs.artifact-conduit }}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # push to main or workflow_dispatch → test everything
+            {
+              echo "cloudnative-pg=true"
+              echo "keycloak=true"
+              echo "artifact-conduit=true"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Validate OCM component descriptors (always runs for all 3 components)
+  # ---------------------------------------------------------------------------
+  validate:
+    runs-on: arc-scale-set
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: artifact-conduit
+            path: ./artifact-conduit
+          - component: cloudnative-pg
+            path: ./cloudnative-pg
+          - component: keycloak
+            path: ./keycloak
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up OCM CLI
+        uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+
+      - name: Build OCM component (dry-run)
+        run: |
+          cd "${{ matrix.path }}"
+          ocm add componentversion \
+            --version 0.0.0-ci \
+            --create \
+            --file ./ctf \
+            component-constructor.yaml
+
+      - name: Verify resources resolve
+        run: |
+          cd "${{ matrix.path }}"
+          ocm get resources ./ctf
+
+      - name: Clean up CTF
+        if: always()
+        run: rm -rf "${{ matrix.path }}/ctf"
+
+  # ---------------------------------------------------------------------------
+  # Integration tests (reusable workflows)
+  # ---------------------------------------------------------------------------
+  test-cloudnative-pg:
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.cloudnative-pg == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
+    uses: ./.github/workflows/test-cloudnative-pg.yml
+
+  test-keycloak:
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.keycloak == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
+    uses: ./.github/workflows/test-keycloak.yml
+
+  test-artifact-conduit:
+    needs: [detect-changes, validate]
+    if: >-
+      needs.detect-changes.outputs.artifact-conduit == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
+    uses: ./.github/workflows/test-artifact-conduit.yml
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Gate job for branch protection (single required status check)
+  # ---------------------------------------------------------------------------
+  ci-success:
+    if: always()
+    needs:
+      - detect-changes
+      - validate
+      - test-cloudnative-pg
+      - test-keycloak
+      - test-artifact-conduit
+    runs-on: arc-scale-set
+    steps:
+      - name: Evaluate job results
+        run: |
+          results=( \
+            "${{ needs.detect-changes.result }}" \
+            "${{ needs.validate.result }}" \
+            "${{ needs.test-cloudnative-pg.result }}" \
+            "${{ needs.test-keycloak.result }}" \
+            "${{ needs.test-artifact-conduit.result }}" \
+          )
+          for r in "${results[@]}"; do
+            if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
+              echo "::error::Job failed or was cancelled: $r"
+              exit 1
+            fi
+          done
+          echo "All jobs passed (success or skipped)."

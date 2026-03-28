@@ -15,7 +15,7 @@ spec:
           default: "ghcr.io"
       componentName:
         type: string
-        default: "github.com/ocm/cloudnative-pg"
+        default: "opendefense.cloud/cnpg"
       componentVersion:
         type: string
         default: "1.27.1"
@@ -84,7 +84,7 @@ spec:
       apiVersion: delivery.ocm.software/v1alpha1
       kind: Repository
       metadata:
-        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-")}
         namespace: ${schema.spec.namespace}
       spec:
         url: oci://${schema.spec.registry.url}
@@ -98,7 +98,7 @@ spec:
       apiVersion: delivery.ocm.software/v1alpha1
       kind: Component
       metadata:
-        name: ${schema.spec.componentName | replace("github.com/ocm/", "") | replace("/", "-")}
+        name: ${schema.spec.componentName | replace("opendefense.cloud/", "") | replace("/", "-")}
         namespace: ${schema.spec.namespace}
       spec:
         component: ${schema.spec.componentName}

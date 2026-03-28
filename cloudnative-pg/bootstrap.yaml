@@ -40,7 +40,7 @@ metadata:
   name: cloudnative-pg-component
   namespace: ocm-system
 spec:
-  component: github.com/ocm/cloudnative-pg
+  component: opendefense.cloud/cnpg
   version: 1.27.1
   repository:
     name: cloudnative-pg-repo
@@ -89,7 +89,7 @@ spec:
     url: ghcr.io  # Replace with your registry if using a private one
 
   # Component reference
-  componentName: github.com/ocm/cloudnative-pg
+  componentName: opendefense.cloud/cnpg
   componentVersion: 1.27.1
 
   # Deployment configuration
@@ -129,7 +129,7 @@ spec:
 #     url: ghcr.io
 #
 #   # Component reference
-#   componentName: github.com/ocm/cloudnative-pg
+#   componentName: opendefense.cloud/cnpg
 #   componentVersion: 1.27.1
 #
 #   # Deployment configuration

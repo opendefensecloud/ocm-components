@@ -17,11 +17,9 @@ artifact-conduit/
 ├── bootstrap.yaml                    # KRO bootstrap configuration
 ├── component-constructor.yaml        # OCM component descriptor
 ├── rgd-template.yaml                 # ResourceGraphDefinition for KRO
-└── configs/
-    ├── minimal/                      # Minimal configuration profile
-    │   └── values.yaml
-    └── production/                   # Production HA configuration profile
-        └── values.yaml
+├── minimal-values.yaml               # Minimal configuration profile
+├── production-values.yaml            # Production HA configuration profile
+└── README.md                         # This file
 ```
 
 ## Prerequisites
@@ -85,10 +83,9 @@ For air-gapped or restricted environments:
 
 1. **Create OCM component archive**:
 ```bash
-ocm add componentversion --create --file component-constructor.yaml .
-ocm transfer componentarchive ./github.com/ocm/artifact-conduit \
-  oci://your-registry.com/ocm-components \
-  --copy-resources
+ocm add componentversion --create --file ./ctf component-constructor.yaml
+ocm transfer ctf --copy-local-resources ./ctf \
+  oci://your-registry.com/ocm-components
 ```
 
 2. **In air-gapped environment**, apply bootstrap with internal registry:
