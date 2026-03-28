@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -34,10 +35,13 @@ jobs:
           filters: |
             cloudnative-pg:
               - 'cloudnative-pg/**'
+              - '.github/workflows/test-cloudnative-pg.yml'
             keycloak:
               - 'keycloak/**'
+              - '.github/workflows/test-keycloak.yml'
             artifact-conduit:
               - 'artifact-conduit/**'
+              - '.github/workflows/test-artifact-conduit.yml'
 
       - name: Resolve changes
         id: changes
@@ -102,17 +106,23 @@ jobs:
   # ---------------------------------------------------------------------------
   test-cloudnative-pg:
     needs: [detect-changes, validate]
-    if: needs.detect-changes.outputs.cloudnative-pg == 'true'
+    if: >-
+      needs.detect-changes.outputs.cloudnative-pg == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
     uses: ./.github/workflows/test-cloudnative-pg.yml
 
   test-keycloak:
     needs: [detect-changes, validate]
-    if: needs.detect-changes.outputs.keycloak == 'true'
+    if: >-
+      needs.detect-changes.outputs.keycloak == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
     uses: ./.github/workflows/test-keycloak.yml
 
   test-artifact-conduit:
     needs: [detect-changes, validate]
-    if: needs.detect-changes.outputs.artifact-conduit == 'true'
+    if: >-
+      needs.detect-changes.outputs.artifact-conduit == 'true'
+      && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ok-to-test'))
     uses: ./.github/workflows/test-artifact-conduit.yml
     secrets: inherit
 
