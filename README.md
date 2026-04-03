@@ -61,6 +61,33 @@ kubectl apply --server-side -f cloudnative-pg/operator/cnpg-operator.yml
 kubectl apply -f cloudnative-pg/configs/minimal/cluster.yaml
 ```
 
+### cert-manager (v1.20.1)
+
+Automated TLS Certificate Management for Kubernetes
+
+- **Status**: Ready
+- **Chart**: Official jetstack/cert-manager Helm chart
+- **License**: Apache 2.0
+- **CNCF**: Graduated Project
+- **Configurations**:
+  - Minimal (single replica for dev/test)
+  - Production (HA with multiple replicas, PDB, security hardening, monitoring)
+- **Documentation**: [cert-manager/README.md](cert-manager/README.md)
+- **Features**: Self-signed, CA, ACME (Let's Encrypt), Vault, and Venafi issuer support
+
+Quick Start:
+
+```bash
+# Add Helm repository
+helm repo add jetstack https://charts.jetstack.io
+
+# Install with minimal config
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --values cert-manager/values-minimal.yaml
+```
+
 ### Artifact Conduit (ARC) (v0.1.0)
 
 Kubernetes-native Artifact Gateway for Secure Cross-Zone Transfers
@@ -96,16 +123,22 @@ See [suggested-components.md](suggested-components.md) for a list of additional 
 
 High Priority:
 
-- CloudNativePG (PostgreSQL operator)
-- cert-manager (TLS certificate management)
 - External Secrets Operator
-- Prometheus Operator
+- Prometheus Operator (kube-prometheus-stack)
 - Traefik Ingress Controller
 
 ## Repository Structure
 
 ```text
 ocm-monorepo/
+├── cert-manager/               # cert-manager component
+│   ├── tests/                 # Test scripts
+│   ├── component-constructor.yaml  # OCM component descriptor
+│   ├── rgd-template.yaml      # ResourceGraphDefinition for KRO
+│   ├── bootstrap.yaml         # OCM K8s Toolkit bootstrap
+│   ├── values-minimal.yaml    # Dev/test configuration
+│   ├── values-production.yaml # Production HA configuration
+│   └── README.md              # Component documentation
 ├── keycloak/                   # Keycloak component
 │   ├── operator/              # Operator manifests and CRDs
 │   ├── configs/               # Configuration examples

@@ -14,6 +14,7 @@ jobs:
       matrix:
         component:
           - ./artifact-conduit
+          - ./cert-manager
           - ./cloudnative-pg
           - ./keycloak
     steps:

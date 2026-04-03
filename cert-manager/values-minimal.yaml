@@ -1,0 +1,59 @@
+# cert-manager Minimal Configuration
+# Suitable for development and testing environments
+# Single replica, minimal resources, self-signed issuer
+
+# Install CRDs with Helm
+crds:
+  enabled: true
+
+# Single controller replica
+replicaCount: 1
+
+# Minimal resource allocation
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Webhook configuration
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# CA Injector configuration
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Startup API Check
+startupapicheck:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Disable Prometheus monitoring
+prometheus:
+  enabled: false
+
+# Logging
+global:
+  logLevel: 2

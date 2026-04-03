@@ -19,21 +19,22 @@ This file tracks potential cloud-native applications that could be added as OCM 
   - Microservices requiring PostgreSQL
   - HA database clusters with automated backups
 
-## High Priority
+### cert-manager - COMPLETED ✅
 
-### cert-manager
 - **Source**: Keycloak component dependency (production config)
-- **Reason**: Required for automated TLS certificate management in production Keycloak deployments. Industry-standard solution for certificate automation in Kubernetes.
+- **Status**: Packaged as OCM component (v1.20.1)
 - **Official Project**: https://cert-manager.io/
 - **Operator**: Yes (official cert-manager)
 - **License**: Apache 2.0
 - **Maturity**: CNCF graduated project
+- **Component**: [cert-manager/](cert-manager/)
 - **Use Cases**:
   - TLS certificates for Keycloak
   - Certificate management for all services requiring HTTPS
   - Let's Encrypt integration
+  - Internal PKI with CA issuers
 
-## Medium Priority
+## High Priority
 
 ### External Secrets Operator
 - **Source**: Keycloak component best practice (production config)

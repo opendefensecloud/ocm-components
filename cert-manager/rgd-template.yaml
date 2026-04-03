@@ -1,0 +1,321 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: cert-manager-bootstrap
+  namespace: default
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: CertManagerBootstrap
+    spec:
+      # Component reference configuration
+      registry:
+        url:
+          type: string
+          default: "ghcr.io"
+      componentName:
+        type: string
+        default: "opendefense.cloud/cert-manager"
+      componentVersion:
+        type: string
+        default: "1.20.1"
+
+      # Deployment configuration
+      namespace:
+        type: string
+        default: "cert-manager"
+
+      # Configuration profile selection
+      deploymentProfile:
+        type: string
+        enum: ["minimal", "production"]
+        default: "minimal"
+
+      # Controller replicas
+      controllerReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+
+      # Webhook replicas
+      webhookReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+
+      # CA Injector replicas
+      cainjectorReplicas:
+        type: integer
+        minimum: 1
+        maximum: 5
+        default: 1
+
+      # Install CRDs via Helm
+      installCRDs:
+        type: boolean
+        default: true
+
+      # Enable Prometheus monitoring
+      monitoringEnabled:
+        type: boolean
+        default: false
+
+      # DNS01 recursive nameservers (for private DNS)
+      dns01RecursiveNameservers:
+        type: string
+        default: ""
+
+      # Enable default issuer (self-signed)
+      enableDefaultIssuer:
+        type: boolean
+        default: false
+
+      # Credentials configuration
+      ocmConfigSecretName:
+        type: string
+        default: ""
+
+  resources:
+    # OCM Repository resource
+    - id: ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Repository
+      metadata:
+        name: cert-manager-repo
+        namespace: ${schema.spec.namespace}
+      spec:
+        url: oci://${schema.spec.registry.url}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Component resource
+    - id: ocm-component
+      dependsOn:
+        - ocm-repository
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Component
+      metadata:
+        name: cert-manager-component
+        namespace: ${schema.spec.namespace}
+      spec:
+        component: ${schema.spec.componentName}
+        version: ${schema.spec.componentVersion}
+        repository:
+          name: ${resources.ocm-repository.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Helm Chart
+    - id: helm-chart-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-chart
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Controller Image
+    - id: controller-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-controller-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-controller-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Webhook Image
+    - id: webhook-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-webhook-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-webhook-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - CA Injector Image
+    - id: cainjector-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-cainjector-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-cainjector-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - ACME Solver Image
+    - id: acmesolver-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-acmesolver-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-acmesolver-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # OCM Resource - Startup API Check Image
+    - id: startupapicheck-image-resource
+      dependsOn:
+        - ocm-component
+      apiVersion: delivery.ocm.software/v1alpha1
+      kind: Resource
+      metadata:
+        name: cert-manager-startupapicheck-image
+        namespace: ${schema.spec.namespace}
+      spec:
+        resource: cert-manager-startupapicheck-image
+        component:
+          name: ${resources.ocm-component.metadata.name}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # Namespace
+    - id: cert-manager-namespace
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ${schema.spec.namespace}
+
+    # FluxCD OCIRepository for Helm Chart
+    - id: oci-repository
+      dependsOn:
+        - cert-manager-namespace
+        - helm-chart-resource
+      apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      metadata:
+        name: cert-manager-chart
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        url: ${resources.helm-chart-resource.status.localization.ociArtifact.url}
+        ref:
+          tag: ${resources.helm-chart-resource.status.localization.ociArtifact.tag}
+        secretRef:
+          name: ${schema.spec.ocmConfigSecretName}
+
+    # FluxCD HelmRelease for cert-manager
+    - id: helm-release
+      dependsOn:
+        - oci-repository
+        - controller-image-resource
+        - webhook-image-resource
+        - cainjector-image-resource
+        - acmesolver-image-resource
+        - startupapicheck-image-resource
+      apiVersion: helm.toolkit.fluxcd.io/v2beta1
+      kind: HelmRelease
+      metadata:
+        name: cert-manager
+        namespace: ${schema.spec.namespace}
+      spec:
+        interval: 10m
+        chart:
+          spec:
+            chart: ./
+            sourceRef:
+              kind: OCIRepository
+              name: ${resources.oci-repository.metadata.name}
+            interval: 10m
+        values:
+          crds:
+            enabled: ${schema.spec.installCRDs}
+          replicaCount: ${schema.spec.controllerReplicas}
+          image:
+            repository: ${resources.controller-image-resource.status.localization.ociArtifact.repository}
+            tag: ${resources.controller-image-resource.status.localization.ociArtifact.tag}
+          webhook:
+            replicaCount: ${schema.spec.webhookReplicas}
+            image:
+              repository: ${resources.webhook-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.webhook-image-resource.status.localization.ociArtifact.tag}
+          cainjector:
+            replicaCount: ${schema.spec.cainjectorReplicas}
+            image:
+              repository: ${resources.cainjector-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.cainjector-image-resource.status.localization.ociArtifact.tag}
+          acmesolver:
+            image:
+              repository: ${resources.acmesolver-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.acmesolver-image-resource.status.localization.ociArtifact.tag}
+          startupapicheck:
+            image:
+              repository: ${resources.startupapicheck-image-resource.status.localization.ociArtifact.repository}
+              tag: ${resources.startupapicheck-image-resource.status.localization.ociArtifact.tag}
+          prometheus:
+            enabled: ${schema.spec.monitoringEnabled}
+            servicemonitor:
+              enabled: ${schema.spec.monitoringEnabled}
+          # Production-specific settings
+          podDisruptionBudget:
+            enabled: ${schema.spec.deploymentProfile == "production"}
+            minAvailable: ${schema.spec.deploymentProfile == "production" ? 1 : 0}
+          # High availability for production
+          topologySpreadConstraints: ${schema.spec.deploymentProfile == "production" ? [
+            {
+              "maxSkew": 1,
+              "topologyKey": "topology.kubernetes.io/zone",
+              "whenUnsatisfiable": "ScheduleAnyway",
+              "labelSelector": {
+                "matchLabels": {
+                  "app.kubernetes.io/name": "cert-manager"
+                }
+              }
+            }
+          ] : []}
+          # DNS01 recursive nameservers
+          dns01RecursiveNameservers: ${schema.spec.dns01RecursiveNameservers}
+          # Resource limits based on profile
+          resources: ${schema.spec.deploymentProfile == "production" ? {
+            "requests": {
+              "cpu": "100m",
+              "memory": "256Mi"
+            },
+            "limits": {
+              "cpu": "500m",
+              "memory": "512Mi"
+            }
+          } : {
+            "requests": {
+              "cpu": "50m",
+              "memory": "128Mi"
+            },
+            "limits": {
+              "cpu": "200m",
+              "memory": "256Mi"
+            }
+          }}
