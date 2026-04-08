@@ -20,7 +20,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: nginx:1.27
+          imageReference: nginx:1.29
       - name: helm-values-template
         type: yaml
         labels:
