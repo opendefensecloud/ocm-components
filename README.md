@@ -117,6 +117,15 @@ helm install artifact-conduit artifact-conduit/arc-0.1.0.tgz \
 
 **Note**: Artifact Conduit is an early-stage project (356+ commits, 8 contributors) not yet recommended for production without thorough testing. It provides a declarative way to transfer artifacts across security boundaries with automated scanning and policy compliance.
 
+### ocm-demo (v0.1.0)
+
+Minimal example component used to demonstrate OCM packaging, transfer, and runtime image localization.
+
+- **Status**: Example / reference
+- **License**: Apache 2.0
+- **Contents**: Trivial Helm chart deploying `nginx` plus a referential `nginx-image` resource and a Helm values template that consumes the localized image reference
+- **Documentation**: [ocm-demo/README.md](ocm-demo/README.md)
+
 ## Suggested Components
 
 See [suggested-components.md](suggested-components.md) for a list of additional components that are candidates for inclusion in this monorepo based on common dependencies and use cases.
@@ -211,19 +220,7 @@ When adding a new component:
 
 ## Testing
 
-Each component includes test scripts for validation:
-
-```bash
-cd keycloak/tests
-./test-minimal.sh
-```
-
-Tests are designed to run on local kind clusters and verify:
-
-- Operator installation
-- Component deployment
-- Health checks
-- Basic functionality
+Components are intended to ship with test scripts that deploy them onto a local kind cluster and verify operator installation, deployment, health, and basic functionality. Test scaffolding is not yet in place for the existing components and still needs to be added.
 
 ## Releases
 

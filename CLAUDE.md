@@ -18,9 +18,35 @@ Components can reference each other to fulfill dependencies rather than duplicat
 
 ## Repository Structure
 
-The monorepo follows a flat structure where each top-level directory represents a separate cloud-native application/component. As the repository grows, expect to find:
-- Individual application directories (e.g., `keycloak/`, `cloudnative-pg/`)
-- Each application directory will contain OCM component definitions, Helm charts, and configuration
+The monorepo follows a flat structure where each top-level directory represents a separate cloud-native application/component. Component layouts are not yet uniform — two patterns currently coexist:
+
+- **Raw-manifest layout** (`keycloak/`): `component-constructor.yaml`, `operator/` (CRDs + operator manifests), `configs/{minimal,production}/`, `docs/`. No RGD/bootstrap yet.
+- **RGD layout** (`cloudnative-pg/`, `artifact-conduit/`): `component-constructor.yaml`, `rgd-template.yaml`, `bootstrap.yaml`, and flat values/cluster files at the component root (e.g. `minimal-values.yaml`, `cluster-production.yaml`). No `configs/` or `tests/` subdirectory.
+
+When reading or creating files, do not assume one canonical structure — check the component directory first.
+
+All components use the OCM name prefix `opendefense.cloud/<component>` (see existing `component-constructor.yaml` files). New components should follow the same prefix.
+
+## Development Environment
+
+This repo uses [devenv](https://devenv.sh) (entered automatically via direnv / `.envrc`). The shell provides: `ocm`, `kubectl`, `helm`, `kind`, `jq`, `yq-go`, `gnumake`. There is no top-level Makefile — components are built individually with the `ocm` CLI.
+
+## Common Commands
+
+Build a component locally into a CTF archive (mirrors the release workflow):
+
+```bash
+cd <component>          # e.g. keycloak, cloudnative-pg, artifact-conduit
+ocm add componentversion --version <version> --create --file ./ctf component-constructor.yaml
+```
+
+Transfer to a registry. Use `--copy-local-resources` (or `--copy-resources`) so that referential image resources are rewritten with the new registry location — the RGD-based components rely on this for runtime image localization:
+
+```bash
+ocm transfer ctf --copy-local-resources ./ctf ghcr.io/<owner>
+```
+
+Releases are cut by pushing a `v*` git tag. `.github/workflows/release-ocm-components.yml` runs the build+transfer above for every component in its matrix and pushes to `ghcr.io/<owner>`. When adding a new component, append its directory to that workflow's matrix.
 
 ## OCM (Open Component Model)
 
@@ -40,7 +66,7 @@ This repository is in its early stages. When adding new components:
 - Ensure every component has a minimal default config that just works with minimal overhead and in as many environments as possible
 - Ensure every component has an additional production grade config which fully utilizes all available high-availability settings and distributed setup modes of the respective application
 - Ensure the ocm component exposes all available configuration parameters of the underlying helm charts and makes them configurable optionally in addition to the provided default configs for simple and production grade setups
-- Ensure every component has comprehensive tests written. This includes deploying the applications to a local kind cluster
+- Ensure every component has comprehensive tests written. This includes deploying the applications to a local kind cluster. Note: as of this writing no component actually has a `tests/` directory yet — test scaffolding still needs to be created per component, despite what `README.md` implies.
 - **CRITICAL: ALWAYS RUN TESTS** - After creating or modifying any test scripts, ALWAYS run them immediately to verify they work 100%. Debug and fix any issues found before considering the task complete. This is non-negotiable.
 - Ensure the created tests are working 100% by running and debugging them extensively
 - Ensure the Readme.md in the project root is updated with the newly added component

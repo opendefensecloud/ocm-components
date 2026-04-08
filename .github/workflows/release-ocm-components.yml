@@ -17,6 +17,7 @@ jobs:
           - ./cert-manager
           - ./cloudnative-pg
           - ./keycloak
+          - ./ocm-demo
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

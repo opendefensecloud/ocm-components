@@ -1,0 +1,32 @@
+components:
+  - name: opendefense.cloud/ocm-demo
+    provider:
+      name: opendefense.cloud
+    labels:
+      - name: app.kubernetes.io/name
+        value: ocm-demo
+      - name: app.kubernetes.io/component
+        value: example
+    resources:
+      - name: demo-chart
+        type: helmChart
+        relation: local
+        input:
+          type: helm
+          path: ./charts/demo
+      - name: nginx-image
+        type: ociImage
+        version: "1.27"
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: nginx:1.27
+      - name: helm-values-template
+        type: yaml
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: demo-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
