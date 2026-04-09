@@ -47,7 +47,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/keycloak/keycloak-operator:26.5.7
+          imageReference: quay.io/keycloak/keycloak-operator:26.6.0
 
       # Keycloak Application Container Image
       - name: keycloak-image
