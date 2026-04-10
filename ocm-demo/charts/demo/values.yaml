@@ -1,8 +1,8 @@
 replicaCount: 1
 
 image:
-  repository: nginx
-  tag: "1.29"
+  repository: ghcr.io/linuxserver/nginx
+  tag: "1.28.3"
   pullPolicy: IfNotPresent
 
 service:

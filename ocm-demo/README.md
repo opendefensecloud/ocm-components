@@ -7,7 +7,7 @@ A minimal example OCM component used to demonstrate the packaging, transfer, and
 - `component-constructor.yaml` — OCM component descriptor (`opendefense.cloud/ocm-demo`)
 - `charts/demo/` — minimal Helm chart deploying `nginx`
 - `values.yaml.tpl` — Helm values template that consumes the localized `nginx-image` reference from the component's OCI resources, so the chart pulls from whichever registry the component currently lives in
-- `nginx-image` — referential `ociImage` resource (`nginx:1.27`); rewritten on `ocm transfer --copy-resources`
+- `nginx-image` — referential `ociImage` resource (`ghcr.io/linuxserver/nginx:1.28.3`); rewritten on `ocm transfer --copy-resources`
 
 ## Build locally
 
