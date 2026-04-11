@@ -71,7 +71,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/jetstack/cert-manager-startupapicheck:v1.20.1
+          imageReference: quay.io/jetstack/cert-manager-startupapicheck:v1.20.2
 
       # Minimal Configuration (development/testing)
       - name: cert-manager-minimal-config
