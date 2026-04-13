@@ -25,7 +25,7 @@ components:
         relation: external
         access:
           type: helm
-          helmChart: cert-manager:v1.20.1
+          helmChart: cert-manager:v1.20.2
           helmRepository: https://charts.jetstack.io
 
       # cert-manager Controller Image
