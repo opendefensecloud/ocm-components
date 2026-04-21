@@ -5,6 +5,8 @@ image:
   tag: "1.28.3"
   pullPolicy: IfNotPresent
 
+imagePullSecrets: []
+
 service:
   type: ClusterIP
   port: 80
