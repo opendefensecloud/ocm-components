@@ -1,0 +1,48 @@
+# Minimal SolutionArsenal Discovery Configuration
+# Single-instance setup suitable for:
+# - Development environments
+# - Testing and evaluation
+# - Resource-constrained environments (kind, minikube)
+# - Scan-only mode (no webhook required)
+
+image:
+  repository: ghcr.io/opendefensecloud/solar-discovery
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# No registries configured by default — add your registries here
+# registries:
+#   - name: my-registry
+#     hostname: registry.example.com
+#     scanInterval: 24h
+#     credentials:
+#       username: ${REGISTRY_USERNAME}
+#       password: ${REGISTRY_PASSWORD}
+
+# Namespace where discovered Component/ComponentVersion resources are created
+namespace: ""
+
+# Webhook service enabled but no ingress — webhook can be added later
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8080
+
+# Minimal resource requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# CA bundle disabled for minimal setup
+caBundle:
+  enabled: false
+
+# RBAC enabled
+rbac:
+  create: true

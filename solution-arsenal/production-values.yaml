@@ -1,0 +1,176 @@
+# Production SolutionArsenal Configuration
+# Highly-available setup suitable for:
+# - Production environments
+# - Mission-critical workloads
+# - Enterprise deployments
+
+# API Server - 3 replicas, HA with anti-affinity
+apiserver:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/opendefensecloud/solar-apiserver
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+    port: 443
+
+  # Spread replicas across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - solar
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - apiserver
+            topologyKey: kubernetes.io/hostname
+
+# Renderer - production resources
+renderer:
+  image:
+    repository: ghcr.io/opendefensecloud/solar-renderer
+    tag: latest
+
+# Controller Manager - 3 replicas, leader election enabled
+controller:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/opendefensecloud/solar-controller-manager
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  args:
+    healthProbeBindAddress: ":8081"
+    metricsBindAddress: ":8443"
+    metricsSecure: true
+    enableHTTP2: false
+    leaderElect: true
+
+  # Enable metrics for production monitoring
+  metrics:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 8443
+    certManager:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      additionalLabels:
+        release: prometheus
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 200m
+      memory: 128Mi
+
+  # Spread replicas across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - solar
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - controller-manager
+            topologyKey: kubernetes.io/hostname
+
+# etcd - 3 replicas, production storage
+etcd:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.6.10
+    pullPolicy: IfNotPresent
+
+  persistence:
+    enabled: true
+    size: 20Gi
+    # storageClass: "fast-ssd"  # Uncomment and set to your high-performance storage class
+    storageClass: ""
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  # Spread replicas across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - solar
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - etcd
+            topologyKey: kubernetes.io/hostname
+
+# cert-manager integration - ClusterIssuer for production
+certManager:
+  enabled: true
+  issuer:
+    create: true
+    kind: ClusterIssuer
+    selfSigned: true
+    # Alternative: Use CA issuer if you have an internal CA
+    # ca:
+    #   enabled: true
+    #   secretName: "ca-key-pair"
+    # Alternative: Use Let's Encrypt ACME for public certificates
+    # acme:
+    #   enabled: true
+    #   server: "https://acme-v02.api.letsencrypt.org/directory"
+    #   email: "admin@example.com"
+    #   privateKeySecretRef: "letsencrypt-production"
+  certificate:
+    duration: 8760h   # 1 year
+    renewBefore: 2160h # 90 days
+
+# RBAC enabled
+rbac:
+  create: true

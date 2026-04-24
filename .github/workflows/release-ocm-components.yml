@@ -18,6 +18,8 @@ jobs:
           - ./cloudnative-pg
           - ./keycloak
           - ./ocm-demo
+          - ./solution-arsenal
+          - ./solution-arsenal-discovery
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

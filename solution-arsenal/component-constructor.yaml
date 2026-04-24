@@ -1,0 +1,80 @@
+components:
+  - name: opendefense.cloud/solution-arsenal
+    provider:
+      name: opendefense.cloud
+    labels:
+      - name: app.kubernetes.io/name
+        value: solution-arsenal
+      - name: app.kubernetes.io/component
+        value: solution-catalog
+      - name: app.kubernetes.io/part-of
+        value: solution-arsenal
+    resources:
+      # ResourceGraphDefinition for KRO bootstrapping
+      - name: solution-arsenal-rgd
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: rgd-template.yaml
+
+      # SolutionArsenal Helm Chart (local)
+      - name: solution-arsenal-chart
+        type: helmChart
+        version: v0.1.0
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/charts/solar:0.1.1
+
+      # API Server Container Image
+      - name: solution-arsenal-apiserver-image
+        type: ociImage
+        version: v0.1.0
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/solar-apiserver:0.1.1
+
+      # Controller Manager Container Image
+      - name: solution-arsenal-controller-manager-image
+        type: ociImage
+        version: v0.1.0
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/solar-controller-manager:0.1.1
+
+      # Renderer Container Image
+      - name: solution-arsenal-renderer-image
+        type: ociImage
+        version: 0.1.0
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/solar-renderer:0.1.1
+
+      # etcd Container Image
+      - name: etcd-image
+        type: ociImage
+        version: v3.6.10
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/coreos/etcd:v3.6.10
+
+      # Minimal Configuration (single instance, development)
+      - name: solution-arsenal-minimal-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: minimal-values.yaml
+
+      # Production Configuration (HA with replicas, metrics enabled)
+      - name: solution-arsenal-production-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: production-values.yaml
