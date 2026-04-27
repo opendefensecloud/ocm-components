@@ -47,3 +47,5 @@ deep-docs/
 *.coverprofile
 
 ctf/
+
+common.mk

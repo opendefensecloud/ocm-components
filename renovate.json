@@ -20,6 +20,29 @@
         "helmChart: (?<depName>.*)\\s*helmRepository: (?<registryUrl>.*)\\s*type: helm\\s*version: (?<currentValue>.*)"
       ],
       "datasourceTemplate": "helm"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "Makefile"
+      ],
+      "matchStrings": [
+        "DEV_KIT_VERSION := (?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "opendefensecloud/dev-kit",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "tools.lock"
+      ],
+      "matchStrings": [
+        "(?<depName>[^\\s]+) (?<packageName>[^@]+)@(?<currentValue>v?[^\\s]+)"
+      ],
+      "versioningTemplate": "semver",
+      "datasourceTemplate": "go"
     }
   ]
 }
