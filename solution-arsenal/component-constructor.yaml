@@ -10,18 +10,10 @@ components:
       - name: app.kubernetes.io/part-of
         value: solution-arsenal
     resources:
-      # ResourceGraphDefinition for KRO bootstrapping
-      - name: solution-arsenal-rgd
-        type: yaml
-        relation: local
-        input:
-          type: file
-          path: rgd-template.yaml
-
-      # SolutionArsenal Helm Chart (local)
+      # SolutionArsenal Helm Chart
       - name: solution-arsenal-chart
         type: helmChart
-        version: v0.1.0
+        version: v0.1.1
         relation: external
         access:
           type: ociArtifact
@@ -30,7 +22,7 @@ components:
       # API Server Container Image
       - name: solution-arsenal-apiserver-image
         type: ociImage
-        version: v0.1.0
+        version: v0.1.1
         relation: external
         access:
           type: ociArtifact
@@ -39,7 +31,7 @@ components:
       # Controller Manager Container Image
       - name: solution-arsenal-controller-manager-image
         type: ociImage
-        version: v0.1.0
+        version: v0.1.1
         relation: external
         access:
           type: ociArtifact
@@ -48,7 +40,7 @@ components:
       # Renderer Container Image
       - name: solution-arsenal-renderer-image
         type: ociImage
-        version: 0.1.0
+        version: 0.1.1
         relation: external
         access:
           type: ociArtifact

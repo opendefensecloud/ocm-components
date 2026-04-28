@@ -13,7 +13,7 @@ components:
       # SolutionArsenal Discovery Helm Chart
       - name: solution-arsenal-discovery-chart
         type: helmChart
-        version: v0.1.0
+        version: v0.1.1
         relation: external
         access:
           type: ociArtifact
@@ -22,7 +22,7 @@ components:
       # Solar Discovery Container Image
       - name: solution-arsenal-discovery-image
         type: ociImage
-        version: v0.1.0
+        version: v0.1.1
         relation: external
         access:
           type: ociArtifact
