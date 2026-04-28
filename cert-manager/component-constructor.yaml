@@ -53,7 +53,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/jetstack/cert-manager-cainjector:v1.20.1
+          imageReference: quay.io/jetstack/cert-manager-cainjector:v1.20.2
 
       # cert-manager ACME Solver Image
       - name: cert-manager-acmesolver-image
