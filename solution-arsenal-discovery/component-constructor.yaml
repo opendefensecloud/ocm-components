@@ -10,15 +10,7 @@ components:
       - name: app.kubernetes.io/part-of
         value: solution-arsenal
     resources:
-      # ResourceGraphDefinition for KRO bootstrapping
-      - name: solution-arsenal-discovery-rgd
-        type: yaml
-        relation: local
-        input:
-          type: file
-          path: rgd-template.yaml
-
-      # SolutionArsenal Discovery Helm Chart (local)
+      # SolutionArsenal Discovery Helm Chart
       - name: solution-arsenal-discovery-chart
         type: helmChart
         version: v0.1.0
