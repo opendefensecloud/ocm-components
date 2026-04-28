@@ -62,7 +62,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/jetstack/cert-manager-acmesolver:v1.20.1
+          imageReference: quay.io/jetstack/cert-manager-acmesolver:v1.20.2
 
       # cert-manager Startup API Check Image
       - name: cert-manager-startupapicheck-image
