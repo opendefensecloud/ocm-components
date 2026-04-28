@@ -44,7 +44,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/jetstack/cert-manager-webhook:v1.20.1
+          imageReference: quay.io/jetstack/cert-manager-webhook:v1.20.2
 
       # cert-manager CA Injector Image
       - name: cert-manager-cainjector-image
