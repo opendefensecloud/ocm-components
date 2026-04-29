@@ -117,6 +117,29 @@ helm install artifact-conduit artifact-conduit/arc-0.1.0.tgz \
 
 **Note**: Artifact Conduit is an early-stage project (356+ commits, 8 contributors) not yet recommended for production without thorough testing. It provides a declarative way to transfer artifacts across security boundaries with automated scanning and policy compliance.
 
+### Solution Arsenal
+
+OCM-based Application Catalog and Fleet Rollout Manager
+
+- **Status**: Early Stage (pre-release, active development)
+- **License**: Apache 2.0
+- **Configurations**:
+  - Minimal (single instance, development / evaluation)
+  - Production (3 replicas each, leader election, metrics enabled)
+- **Documentation**: [solution-arsenal/README.md](solution-arsenal/README.md)
+
+### Solution Arsenal Discovery
+
+Standalone OCI Registry Scanner for OCM Packages
+
+- **Status**: Early Stage (pre-release, active development)
+- **License**: Apache 2.0
+- **Configurations**:
+  - Minimal (single instance, scan-only mode, no webhook)
+  - Production (2 replicas, webhook listener enabled, anti-affinity)
+- **Documentation**: [solution-arsenal-discovery/README.md](solution-arsenal-discovery/README.md)
+
+
 ### ocm-demo (v0.1.0)
 
 Minimal example component used to demonstrate OCM packaging, transfer, and runtime image localization.

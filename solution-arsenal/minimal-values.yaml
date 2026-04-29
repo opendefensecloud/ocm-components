@@ -1,0 +1,100 @@
+# Minimal SolutionArsenal Configuration
+# Single-instance setup suitable for:
+# - Development environments
+# - Testing and evaluation
+# - Resource-constrained environments (kind, minikube)
+# - Non-HA scenarios
+
+# API Server - single instance, minimal resources
+apiserver:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/opendefensecloud/solar-apiserver
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+  service:
+    type: ClusterIP
+    port: 443
+
+# Renderer - minimal resources
+renderer:
+  image:
+    repository: ghcr.io/opendefensecloud/solar-renderer
+    tag: latest
+
+# Controller Manager - single instance, leader election disabled
+controller:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/opendefensecloud/solar-controller-manager
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  args:
+    healthProbeBindAddress: ":8081"
+    metricsBindAddress: "0"
+    metricsSecure: true
+    enableHTTP2: false
+    leaderElect: false
+
+  metrics:
+    enabled: false
+
+  resources:
+    limits:
+      cpu: 300m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 64Mi
+
+# etcd - single instance, minimal storage
+etcd:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: quay.io/coreos/etcd
+    tag: v3.6.10
+    pullPolicy: IfNotPresent
+
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+# cert-manager integration - self-signed issuer
+certManager:
+  enabled: true
+  issuer:
+    create: true
+    kind: Issuer
+    selfSigned: true
+  certificate:
+    duration: 2160h   # 90 days
+    renewBefore: 720h # 30 days
+
+# RBAC enabled
+rbac:
+  create: true
