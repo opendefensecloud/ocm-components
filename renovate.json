@@ -5,10 +5,13 @@
   ],
   "customManagers": [
     {
-      "customType": "regex",
-      "matchStringsStrategy": "any",
+      "customType": "jsonata",
+      "fileFormat": "yaml",
       "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
-      "matchStrings": ["imageReference: (?<depName>.*):(?<currentValue>.*)\\s+version: (?<versionPlaceholder>.*)"],
+      "matchStrings": [
+        "components.resources[type = 'ociImage'].{'depName': $split(access.imageReference, ':')[0], 'currentValue': $split(access.imageReference, ':')[1]}",
+        "components.resources[type = 'ociImage'].{'depName': $split(access.imageReference, ':')[0], 'currentValue': version}"
+      ],
       "datasourceTemplate": "docker"
     },
     {
