@@ -8,7 +8,7 @@
       "customType": "regex",
       "matchStringsStrategy": "any",
       "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
-      "matchStrings": ["imageReference: (?<depName>.*):(?<currentValue>.*)"],
+      "matchStrings": ["imageReference: (?<depName>.*):(?<currentValue>.*)\\s+version: (?<versionPlaceholder>.*)"],
       "datasourceTemplate": "docker"
     },
     {
