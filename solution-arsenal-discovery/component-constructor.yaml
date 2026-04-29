@@ -1,0 +1,45 @@
+components:
+  - name: opendefense.cloud/solution-arsenal-discovery
+    provider:
+      name: opendefense.cloud
+    labels:
+      - name: app.kubernetes.io/name
+        value: solution-arsenal-discovery
+      - name: app.kubernetes.io/component
+        value: registry-scanner
+      - name: app.kubernetes.io/part-of
+        value: solution-arsenal
+    resources:
+      # SolutionArsenal Discovery Helm Chart
+      - name: solution-arsenal-discovery-chart
+        type: helmChart
+        version: v0.1.1
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/charts/solar-discovery:0.1.1
+
+      # Solar Discovery Container Image
+      - name: solution-arsenal-discovery-image
+        type: ociImage
+        version: v0.1.1
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/solar-discovery:0.1.1
+
+      # Minimal Configuration (single instance, scan-only mode)
+      - name: solution-arsenal-discovery-minimal-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: minimal-values.yaml
+
+      # Production Configuration (2 replicas, webhook enabled, anti-affinity)
+      - name: solution-arsenal-discovery-production-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: production-values.yaml

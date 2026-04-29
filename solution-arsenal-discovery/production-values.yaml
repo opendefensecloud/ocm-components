@@ -1,0 +1,71 @@
+# Production SolutionArsenal Discovery Configuration
+# Highly-available  setup suitable for:
+# - Production environments
+# - Environments with private registries requiring TLS trust
+
+image:
+  repository: ghcr.io/opendefensecloud/solar-discovery
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# Configure registries to scan — use envFrom to inject credentials from Secrets
+# registries:
+#   - name: internal-registry
+#     hostname: registry.internal.example.com
+#     scanInterval: 12h
+#     credentials:
+#       username: ${REGISTRY_USERNAME}
+#       password: ${REGISTRY_PASSWORD}
+#     webhookPath: events
+#     flavor: zot
+
+# Namespace where discovered Component/ComponentVersion resources are created
+namespace: ""
+
+# Webhook service for event-driven registry notifications
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8080
+
+# Production resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Spread replicas across nodes for resilience
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - solar-discovery
+          topologyKey: kubernetes.io/hostname
+
+# CA bundle for private registry TLS trust
+# Point to a ConfigMap containing your CA certificates
+# (e.g., produced by trust-manager's root-bundle)
+caBundle:
+  enabled: true
+  configMapName: registry-ca-bundle
+  key: trust-bundle.pem
+
+# Inject registry credentials from a Secret
+# envFrom:
+#   - secretRef:
+#       name: registry-credentials
+
+# RBAC enabled
+rbac:
+  create: true
