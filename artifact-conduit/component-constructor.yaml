@@ -10,18 +10,10 @@ components:
       - name: app.kubernetes.io/part-of
         value: artifact-conduit
     resources:
-      # ResourceGraphDefinition for KRO bootstrapping
-      - name: artifact-conduit-rgd
-        type: yaml
-        relation: local
-        input:
-          type: file
-          path: rgd-template.yaml
-
-      # Artifact Conduit (ARC) Helm Chart (official)
+      # Artifact Conduit (ARC) Helm Chart
       - name: arc-chart
         type: helmChart
-        version: v0.1.4
+        version: v0.2.2
         relation: external
         access:
           type: ociArtifact
@@ -30,7 +22,7 @@ components:
       # API Server Container Image
       - name: arc-apiserver-image
         type: ociImage
-        version: v0.2.0
+        version: v0.2.2
         relation: external
         access:
           type: ociArtifact
@@ -39,7 +31,7 @@ components:
       # Controller Manager Container Image
       - name: arc-controller-manager-image
         type: ociImage
-        version: v0.2.0
+        version: v0.2.2
         relation: external
         access:
           type: ociArtifact
@@ -48,7 +40,7 @@ components:
       # etcd Container Image
       - name: etcd-image
         type: ociImage
-        version: v3.6.6
+        version: v3.6.10
         relation: external
         access:
           type: ociArtifact
@@ -69,15 +61,3 @@ components:
         input:
           type: file
           path: production-values.yaml
-
-    # TODO: add sources back, there were some issues in CI (probably some issues in YAML):
-    # Error: opendefense.cloud/arc:v26.1-rc.1: transferring source 0: failed to validate commit: commit is not a SHA
-    # Error: component transport: opendefense.cloud/arc:v26.1-rc.1: transferring source 0: failed to validate commit: commit is not a SHA
-    # sources:
-    #   - name: arc-source
-    #     type: git
-    #     version: v0.2.0
-    #     access:
-    #       type: github
-    #       repoUrl: github.com/opendefensecloud/artifact-conduit
-    #       ref: v0.2.0
