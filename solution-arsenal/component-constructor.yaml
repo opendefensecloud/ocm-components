@@ -53,7 +53,7 @@ components:
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/coreos/etcd:v3.6.10
+          imageReference: quay.io/coreos/etcd:v3.6.11
 
       # Minimal Configuration (single instance, development)
       - name: solution-arsenal-minimal-config
