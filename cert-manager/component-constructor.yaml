@@ -67,7 +67,7 @@ components:
       # cert-manager Startup API Check Image
       - name: cert-manager-startupapicheck-image
         type: ociImage
-        version: 1.20.1
+        version: 1.20.2
         relation: external
         access:
           type: ociArtifact
