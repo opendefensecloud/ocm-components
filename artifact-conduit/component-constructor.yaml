@@ -40,7 +40,7 @@ components:
       # etcd Container Image
       - name: etcd-image
         type: ociImage
-        version: v3.6.10
+        version: v3.6.11
         relation: external
         access:
           type: ociArtifact
