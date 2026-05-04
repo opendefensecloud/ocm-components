@@ -58,7 +58,7 @@ components:
       # cert-manager ACME Solver Image
       - name: cert-manager-acmesolver-image
         type: ociImage
-        version: 1.20.1
+        version: 1.20.2
         relation: external
         access:
           type: ociArtifact
