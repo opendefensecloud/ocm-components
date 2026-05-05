@@ -41,7 +41,7 @@ components:
       # CloudNativePG Operator Container Image
       - name: cnpg-operator-image
         type: ociImage
-        version: 1.27.1
+        version: 1.29.0
         relation: external
         access:
           type: ociArtifact
