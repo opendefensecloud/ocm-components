@@ -52,7 +52,7 @@ components:
       # Keycloak Application Container Image
       - name: keycloak-image
         type: ociImage
-        version: 26.4.5
+        version: 26.6.1
         relation: external
         access:
           type: ociArtifact
