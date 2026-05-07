@@ -43,7 +43,7 @@ components:
       # Keycloak Operator Container Image
       - name: keycloak-operator-image
         type: ociImage
-        version: 26.4.5
+        version: 26.6.1
         relation: external
         access:
           type: ociArtifact
