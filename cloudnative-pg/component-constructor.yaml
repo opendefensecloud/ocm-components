@@ -41,11 +41,11 @@ components:
       # CloudNativePG Operator Container Image
       - name: cnpg-operator-image
         type: ociImage
-        version: 1.29.0
+        version: 1.29.1
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/cloudnative-pg/cloudnative-pg:1.29.0
+          imageReference: ghcr.io/cloudnative-pg/cloudnative-pg:1.29.1
 
       # PostgreSQL 17 Image (latest supported)
       - name: postgresql-17-image
