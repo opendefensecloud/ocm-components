@@ -35,7 +35,7 @@ components:
         relation: external
         access:
           type: helm
-          helmChart: cluster:0.6.0
+          helmChart: cluster:0.6.1
           helmRepository: https://cloudnative-pg.github.io/charts
 
       # CloudNativePG Operator Container Image
