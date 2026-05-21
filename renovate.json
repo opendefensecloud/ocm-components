@@ -15,37 +15,15 @@
       "datasourceTemplate": "docker"
     },
     {
-      "customType": "regex",
-      "matchStringsStrategy": "any",
+      "customType": "jsonata",
+      "fileFormat": "yaml",
       "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
       "matchStrings": [
-        "helmChart: (?<depName>.*):(?<currentValue>.*)\\s*helmRepository: (?<registryUrl>.*)",
-        "helmChart: (?<depName>.*)\\s*helmRepository: (?<registryUrl>.*)\\s*type: helm\\s*version: (?<currentValue>.*)"
+        "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': $split(access.helmChart, ':')[1], 'registryUrl': access.helmRepository}",
+        "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': version, 'registryUrl': access.helmRepository}"
       ],
-      "datasourceTemplate": "helm"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "Makefile"
-      ],
-      "matchStrings": [
-        "DEV_KIT_VERSION := (?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
-      ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "opendefensecloud/dev-kit",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "tools.lock"
-      ],
-      "matchStrings": [
-        "(?<depName>[^\\s]+) (?<packageName>[^@]+)@(?<currentValue>v?[^\\s]+)"
-      ],
-      "versioningTemplate": "semver",
-      "datasourceTemplate": "go"
+      "datasourceTemplate": "helm",
+      "extractVersion": "^v?(?<version>.*)$"
     }
   ]
 }
