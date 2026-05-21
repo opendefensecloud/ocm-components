@@ -19,6 +19,17 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/opendefensecloud/charts/solar-discovery:0.1.1
 
+      # Helm Values Template for SolutionArsenal Discovery Helm Chart
+      - name: helm-values-template
+        type: yaml
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: solution-arsenal-discovery-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
+
       # Solar Discovery Container Image
       - name: solution-arsenal-discovery-image
         type: ociImage
