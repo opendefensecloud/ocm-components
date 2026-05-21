@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: arc-scale-set
+    runs-on: ubuntu-24.04
     permissions:
       packages: write # Push to ghcr.io
     strategy:
