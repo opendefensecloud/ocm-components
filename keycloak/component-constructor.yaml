@@ -43,20 +43,20 @@ components:
       # Keycloak Operator Container Image
       - name: keycloak-operator-image
         type: ociImage
-        version: 26.6.1
+        version: 26.6.2
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/keycloak/keycloak-operator:26.6.1
+          imageReference: quay.io/keycloak/keycloak-operator:26.6.2
 
       # Keycloak Application Container Image
       - name: keycloak-image
         type: ociImage
-        version: 26.6.1
+        version: 26.6.2
         relation: external
         access:
           type: ociArtifact
-          imageReference: quay.io/keycloak/keycloak:26.6.1
+          imageReference: quay.io/keycloak/keycloak:26.6.2
 
       # Minimal Configuration
       - name: keycloak-minimal-config
