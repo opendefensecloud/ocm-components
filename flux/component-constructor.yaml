@@ -1,0 +1,105 @@
+components:
+  - name: opendefense.cloud/flux
+    provider:
+      name: opendefense.cloud
+    labels:
+      - name: app.kubernetes.io/name
+        value: flux
+      - name: app.kubernetes.io/component
+        value: flux
+      - name: app.kubernetes.io/part-of
+        value: flux
+    resources:
+      # install via helm install
+      - name: flux-chart
+        type: helmChart
+        version: v2.18.3
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd-community/charts/flux2:2.18.3
+
+      - name: flux-chart-values-template
+        type: yaml
+        version: v2.18.3
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: flux-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
+
+      # install via kubectl apply
+      - name: install-yaml
+        type: yaml
+        version: v2.8.5
+        relation: external
+        access:
+          type: wget
+          url: https://github.com/fluxcd/flux2/releases/download/v2.8.5/install.yaml
+
+      # images
+      - name: helm-controller-image
+        type: ociImage
+        version: v1.5.3
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/helm-controller:v1.5.3
+
+      - name: cli-image
+        type: ociImage
+        version: v2.8.5
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/flux-cli:v2.8.5
+
+      - name: image-automation-controller-image
+        type: ociImage
+        version: v1.1.1
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/image-automation-controller:v1.1.1
+
+      - name: image-reflector-controller-image
+        type: ociImage
+        version: v1.1.1
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/image-reflector-controller:v1.1.1
+
+      - name: kustomize-controller-image
+        type: ociImage
+        version: v1.8.3
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/kustomize-controller:v1.8.3
+
+      - name: notification-controller-image
+        type: ociImage
+        version: v1.8.3
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/notification-controller:v1.8.3
+
+      - name: source-controller-image
+        type: ociImage
+        version: v1.8.2
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/source-controller:v1.8.2
+
+      - name: source-watcher-image
+        type: ociImage
+        version: v2.1.1
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/fluxcd/source-watcher:v2.1.1
