@@ -66,11 +66,11 @@ components:
 
       - name: image-reflector-controller-image
         type: ociImage
-        version: v1.1.1
+        version: v1.1.2
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/fluxcd/image-reflector-controller:v1.1.1
+          imageReference: ghcr.io/fluxcd/image-reflector-controller:v1.1.2
 
       - name: kustomize-controller-image
         type: ociImage
