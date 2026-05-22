@@ -15,14 +15,15 @@
       "datasourceTemplate": "docker"
     },
     {
-      "customType": "regex",
-      "matchStringsStrategy": "any",
+      "customType": "jsonata",
+      "fileFormat": "yaml",
       "managerFilePatterns": ["/.*/component-constructor.yaml$/"],
       "matchStrings": [
-        "helmChart: (?<depName>.*):(?<currentValue>.*)\\s*helmRepository: (?<registryUrl>.*)",
-        "helmChart: (?<depName>.*)\\s*helmRepository: (?<registryUrl>.*)\\s*type: helm\\s*version: (?<currentValue>.*)"
+        "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': $split(access.helmChart, ':')[1], 'registryUrl': access.helmRepository}",
+        "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': version, 'registryUrl': access.helmRepository}"
       ],
-      "datasourceTemplate": "helm"
+      "datasourceTemplate": "helm",
+      "extractVersion": "^v?(?<version>.*)$"
     }
   ]
 }
