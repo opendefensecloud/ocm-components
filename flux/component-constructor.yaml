@@ -42,11 +42,11 @@ components:
       # images
       - name: helm-controller-image
         type: ociImage
-        version: v1.5.3
+        version: v1.5.5
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/fluxcd/helm-controller:v1.5.3
+          imageReference: ghcr.io/fluxcd/helm-controller:v1.5.5
 
       - name: cli-image
         type: ociImage
