@@ -58,11 +58,11 @@ components:
 
       - name: image-automation-controller-image
         type: ociImage
-        version: v1.1.1
+        version: v1.1.4
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/fluxcd/image-automation-controller:v1.1.1
+          imageReference: ghcr.io/fluxcd/image-automation-controller:v1.1.4
 
       - name: image-reflector-controller-image
         type: ociImage
