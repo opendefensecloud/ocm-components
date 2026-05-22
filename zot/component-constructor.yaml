@@ -12,7 +12,7 @@ components:
     resources:
       - name: zot-chart
         type: helmChart
-        version: v0.1.116
+        version: "0.1.116"
         relation: external
         access:
           type: ociArtifact
@@ -20,7 +20,7 @@ components:
 
       - name: flux-chart-values-template
         type: yaml
-        version: v0.1.116
+        version: "0.1.116"
         labels:
           - name: opendefense.cloud/helm/values-for
             value: zot-chart
@@ -39,7 +39,7 @@ components:
 
       - name: alpine-image
         type: ociImage
-        version: v3.18
+        version: "3.18"
         relation: external
         access:
           type: ociArtifact

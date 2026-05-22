@@ -13,7 +13,7 @@ components:
       # install via helm install
       - name: flux-chart
         type: helmChart
-        version: v2.18.3
+        version: "2.18.3"
         relation: external
         access:
           type: ociArtifact
@@ -21,7 +21,7 @@ components:
 
       - name: flux-chart-values-template
         type: yaml
-        version: v2.18.3
+        version: "2.18.3"
         labels:
           - name: opendefense.cloud/helm/values-for
             value: flux-chart
