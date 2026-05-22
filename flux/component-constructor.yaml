@@ -50,11 +50,11 @@ components:
 
       - name: cli-image
         type: ociImage
-        version: v2.8.5
+        version: v2.8.8
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/fluxcd/flux-cli:v2.8.5
+          imageReference: ghcr.io/fluxcd/flux-cli:v2.8.8
 
       - name: image-automation-controller-image
         type: ociImage
