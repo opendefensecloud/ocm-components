@@ -19,6 +19,17 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/opendefensecloud/charts/solar:0.1.1
 
+      # Helm Values Template for SolutionArsenal Helm Chart
+      - name: solution-arsenal-helm-values-template
+        type: yaml
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: solution-arsenal-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
+
       # API Server Container Image
       - name: solution-arsenal-apiserver-image
         type: ociImage
