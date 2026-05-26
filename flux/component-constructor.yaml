@@ -82,11 +82,11 @@ components:
 
       - name: notification-controller-image
         type: ociImage
-        version: v1.8.3
+        version: v1.8.4
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/fluxcd/notification-controller:v1.8.3
+          imageReference: ghcr.io/fluxcd/notification-controller:v1.8.4
 
       - name: source-controller-image
         type: ociImage
