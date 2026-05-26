@@ -16,10 +16,12 @@ jobs:
           - ./artifact-conduit
           - ./cert-manager
           - ./cloudnative-pg
+          - ./flux
           - ./keycloak
           - ./ocm-demo
           - ./solution-arsenal
           - ./solution-arsenal-discovery
+          - ./zot
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
