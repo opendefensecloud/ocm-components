@@ -31,11 +31,11 @@ components:
       # CloudNativePG Cluster Helm Chart (official)
       - name: cnpg-cluster-chart
         type: helmChart
-        version: 0.5.0
+        version: 0.6.1
         relation: external
         access:
           type: helm
-          helmChart: cluster:0.6.0
+          helmChart: cluster:0.6.1
           helmRepository: https://cloudnative-pg.github.io/charts
 
       # CloudNativePG Operator Container Image
