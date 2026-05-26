@@ -39,8 +39,8 @@ components:
 
       - name: alpine-image
         type: ociImage
-        version: "3.18"
+        version: "3.23"
         relation: external
         access:
           type: ociArtifact
-          imageReference: docker.io/library/alpine:3.18
+          imageReference: docker.io/library/alpine:3.23
