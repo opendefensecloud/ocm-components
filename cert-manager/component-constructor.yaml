@@ -21,7 +21,7 @@ components:
       # cert-manager Helm Chart (official jetstack)
       - name: cert-manager-chart
         type: helmChart
-        version: 1.20.1
+        version: v1.20.2
         relation: external
         access:
           type: helm
