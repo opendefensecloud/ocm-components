@@ -50,20 +50,20 @@ components:
       # PostgreSQL 17 Image (latest supported)
       - name: postgresql-17-image
         type: ociImage
-        version: "17"
+        version: "18"
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/cloudnative-pg/postgresql:17
+          imageReference: ghcr.io/cloudnative-pg/postgresql:18
 
       # PostgreSQL 16 Image (LTS)
       - name: postgresql-16-image
         type: ociImage
-        version: "16"
+        version: "18"
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/cloudnative-pg/postgresql:16
+          imageReference: ghcr.io/cloudnative-pg/postgresql:18
 
       # Minimal Configuration (Single instance, development)
       - name: cnpg-minimal-config
