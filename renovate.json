@@ -22,8 +22,7 @@
         "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': $split(access.helmChart, ':')[1], 'registryUrl': access.helmRepository}",
         "components.resources[type = 'helmChart'].{'depName': $split(access.helmChart, ':')[0], 'currentValue': version, 'registryUrl': access.helmRepository}"
       ],
-      "datasourceTemplate": "helm",
-      "extractVersion": "^v?(?<version>.*)$"
+      "datasourceTemplate": "helm"
     }
   ]
 }
