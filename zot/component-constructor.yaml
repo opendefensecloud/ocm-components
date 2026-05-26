@@ -1,0 +1,46 @@
+components:
+  - name: opendefense.cloud/zot
+    provider:
+      name: opendefense.cloud
+    labels:
+      - name: app.kubernetes.io/name
+        value: zot
+      - name: app.kubernetes.io/component
+        value: zot
+      - name: app.kubernetes.io/part-of
+        value: zot
+    resources:
+      - name: zot-chart
+        type: helmChart
+        version: "0.1.116"
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/project-zot/helm-charts/zot:0.1.116
+
+      - name: flux-chart-values-template
+        type: yaml
+        version: "0.1.116"
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: zot-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
+
+      - name: zot-image
+        type: ociImage
+        version: v2.1.17
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/project-zot/zot:v2.1.17
+
+      - name: alpine-image
+        type: ociImage
+        version: "3.18"
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: docker.io/library/alpine:3.18
