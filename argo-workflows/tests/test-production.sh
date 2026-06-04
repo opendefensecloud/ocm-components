@@ -116,7 +116,8 @@ PDB_COUNT=$(kubectl get pdb -n "${NAMESPACE}" --no-headers 2>/dev/null | wc -l |
 if [ "$PDB_COUNT" -ge 1 ]; then
     log_info "  $PDB_COUNT PodDisruptionBudget(s) configured"
 else
-    log_warn "  No PodDisruptionBudgets found — check production-values.yaml pdb settings"
+    log_error "  No PodDisruptionBudgets found — production profile requires pdb.enabled: true"
+    exit 1
 fi
 
 # Step 6: Verify pod spread across nodes
@@ -124,15 +125,19 @@ log_info "Checking pod distribution across nodes..."
 CONTROLLER_NODES=$(kubectl get pods -n "${NAMESPACE}" -l app=workflow-controller \
     -o jsonpath='{.items[*].spec.nodeName}' 2>/dev/null | tr ' ' '\n' | sort -u | wc -l | tr -d ' ')
 log_info "  Controller pods spread across $CONTROLLER_NODES unique node(s)"
+if [ "${CONTROLLER_NODES:-0}" -lt 2 ]; then
+    log_error "  Controller pods are only on $CONTROLLER_NODES node(s), expected >= 2 for HA"
+    exit 1
+fi
 
 # Step 7: Submit a DAG workflow with parallel steps
 log_info "Submitting DAG workflow with parallel steps..."
-kubectl apply -f - <<'EOF'
+kubectl apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   name: dag-parallel-test
-  namespace: argo
+  namespace: ${NAMESPACE}
 spec:
   serviceAccountName: argo-workflow
   entrypoint: dag-pipeline
@@ -179,7 +184,7 @@ EOF
 # Step 8: Wait for DAG workflow to succeed
 log_info "Waiting for DAG workflow to complete..."
 for i in $(seq 1 180); do
-    PHASE=$(kubectl get workflow dag-parallel-test -n argo -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+    PHASE=$(kubectl get workflow dag-parallel-test -n "${NAMESPACE}" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
     case "$PHASE" in
         Succeeded)
             log_info "  DAG workflow completed successfully (phase: $PHASE)"
@@ -187,14 +192,14 @@ for i in $(seq 1 180); do
             ;;
         Failed|Error)
             log_error "  DAG workflow failed (phase: $PHASE)"
-            kubectl describe workflow dag-parallel-test -n argo
-            kubectl get pods -n argo -l workflows.argoproj.io/workflow=dag-parallel-test -o wide
+            kubectl describe workflow dag-parallel-test -n "${NAMESPACE}"
+            kubectl get pods -n "${NAMESPACE}" -l workflows.argoproj.io/workflow=dag-parallel-test -o wide
             exit 1
             ;;
     esac
     if [ "$i" -eq 180 ]; then
         log_error "  DAG workflow did not complete within 180 seconds (phase: ${PHASE:-unknown})"
-        kubectl describe workflow dag-parallel-test -n argo
+        kubectl describe workflow dag-parallel-test -n "${NAMESPACE}"
         exit 1
     fi
     sleep 1
@@ -202,7 +207,7 @@ done
 
 # Step 9: Verify DAG nodes all succeeded
 log_info "Verifying all DAG nodes succeeded..."
-FAILED_NODES=$(kubectl get workflow dag-parallel-test -n argo \
+FAILED_NODES=$(kubectl get workflow dag-parallel-test -n "${NAMESPACE}" \
     -o jsonpath='{.status.nodes[?(@.phase!="Succeeded")].displayName}' 2>/dev/null | tr ' ' '\n' | grep -v '^$' || true)
 if [ -z "$FAILED_NODES" ]; then
     log_info "  All DAG nodes succeeded"
