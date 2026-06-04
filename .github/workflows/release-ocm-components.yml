@@ -13,6 +13,7 @@ jobs:
     strategy:
       matrix:
         component:
+          - ./argo-workflows
           - ./artifact-conduit
           - ./cert-manager
           - ./cloudnative-pg
