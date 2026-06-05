@@ -12,6 +12,30 @@ Components can reference each other to fulfill dependencies rather than duplicat
 
 ## Available Components
 
+### Argo Workflows (v4.0.5)
+
+Kubernetes-native Workflow Engine
+
+- **Status**: ✅ Ready
+- **CNCF**: Graduated Project
+- **License**: Apache 2.0
+- **Configurations**:
+  - Minimal (single replica, server auth, dev/test)
+  - Production (HA with 2 replicas, client/SSO auth, PDBs, monitoring)
+- **Documentation**: [argo-workflows/README.md](argo-workflows/README.md)
+- **Used by**: Artifact Conduit (artifact-conduit component)
+
+Quick Start:
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install argo-workflows argo/argo-workflows \
+  --version 1.0.14 \
+  --namespace argo \
+  --create-namespace \
+  --values argo-workflows/minimal-values.yaml
+```
+
 ### Keycloak (v26.4.5)
 
 Identity and Access Management

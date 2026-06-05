@@ -1,0 +1,61 @@
+# Argo Workflows Minimal Configuration
+# Suitable for development and testing environments
+# Single replica, server auth mode (no token required), minimal resources
+
+crds:
+  install: true
+  keep: true
+
+# Create a dedicated service account and RBAC for workflow pods
+workflow:
+  serviceAccount:
+    create: true
+  rbac:
+    create: true
+
+controller:
+  replicas: 1
+  image:
+    registry: quay.io
+    repository: argoproj/workflow-controller
+    tag: "v4.0.5"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  serviceMonitor:
+    enabled: false
+
+executor:
+  image:
+    registry: quay.io
+    repository: argoproj/argoexec
+    tag: "v4.0.5"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+server:
+  enabled: true
+  replicas: 1
+  image:
+    registry: quay.io
+    repository: argoproj/argocli
+    tag: "v4.0.5"
+  # server mode: no authentication required — suitable for dev/test only
+  authModes:
+    - server
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

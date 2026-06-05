@@ -1,0 +1,64 @@
+components:
+  - name: opendefense.cloud/argo-workflows
+    provider:
+      name: argoproj.io
+    labels:
+      - name: app.kubernetes.io/name
+        value: argo-workflows
+      - name: app.kubernetes.io/component
+        value: workflow-engine
+      - name: app.kubernetes.io/part-of
+        value: argo-workflows
+    resources:
+      # Argo Workflows Helm Chart (official argoproj)
+      - name: argo-workflows-chart
+        type: helmChart
+        version: 1.0.14
+        relation: external
+        access:
+          type: helm
+          helmChart: argo-workflows:1.0.14
+          helmRepository: https://argoproj.github.io/argo-helm
+
+      # Workflow Controller Container Image
+      - name: argo-workflows-controller-image
+        type: ociImage
+        version: v4.0.5
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/argoproj/workflow-controller:v4.0.5
+
+      # Argo Server (CLI/UI) Container Image
+      - name: argo-workflows-server-image
+        type: ociImage
+        version: v4.0.5
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/argoproj/argocli:v4.0.5
+
+      # Workflow Executor (argoexec) Container Image
+      - name: argo-workflows-executor-image
+        type: ociImage
+        version: v4.0.5
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: quay.io/argoproj/argoexec:v4.0.5
+
+      # Minimal Configuration (single replica, no auth, dev/test)
+      - name: argo-workflows-minimal-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: minimal-values.yaml
+
+      # Production Configuration (HA, client auth, monitoring)
+      - name: argo-workflows-production-config
+        type: yaml
+        relation: local
+        input:
+          type: file
+          path: production-values.yaml
