@@ -20,6 +20,17 @@ components:
           helmChart: argo-workflows:1.0.14
           helmRepository: https://argoproj.github.io/argo-helm
 
+      - name: argo-workflows-chart-values-template
+        type: yaml
+        version: "1.0.14"
+        labels:
+          - name: opendefense.cloud/helm/values-for
+            value: argo-workflows-chart
+        relation: local
+        input:
+          type: file
+          path: values.yaml.tpl
+
       # Workflow Controller Container Image
       - name: argo-workflows-controller-image
         type: ociImage
