@@ -16,9 +16,8 @@ components:
         version: 1.0.14
         relation: external
         access:
-          type: helm
-          helmChart: argo-workflows:1.0.14
-          helmRepository: https://argoproj.github.io/argo-helm
+          type: ociArtifact
+          imageReference: ghcr.io/argoproj/argo-helm/argo-workflows:1.0.14
 
       - name: argo-workflows-chart-values-template
         type: yaml
