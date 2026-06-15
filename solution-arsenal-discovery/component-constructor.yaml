@@ -13,11 +13,11 @@ components:
       # SolutionArsenal Discovery Helm Chart
       - name: solution-arsenal-discovery-chart
         type: helmChart
-        version: v0.1.1
+        version: v0.1.2
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/charts/solar-discovery:0.1.1
+          imageReference: ghcr.io/opendefensecloud/charts/solar-discovery:0.1.2
 
       # Helm Values Template for SolutionArsenal Discovery Helm Chart
       - name: helm-values-template
@@ -33,11 +33,11 @@ components:
       # Solar Discovery Container Image
       - name: solution-arsenal-discovery-image
         type: ociImage
-        version: v0.1.1
+        version: v0.1.2
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/solar-discovery:0.1.1
+          imageReference: ghcr.io/opendefensecloud/solar-discovery:0.1.2
 
       # Minimal Configuration (single instance, scan-only mode)
       - name: solution-arsenal-discovery-minimal-config
