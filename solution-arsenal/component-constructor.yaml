@@ -13,11 +13,11 @@ components:
       # SolutionArsenal Helm Chart
       - name: solution-arsenal-chart
         type: helmChart
-        version: v0.1.1
+        version: v0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/charts/solar:0.1.1
+          imageReference: ghcr.io/opendefensecloud/charts/solar:0.2.0
 
       # Helm Values Template for SolutionArsenal Helm Chart
       - name: solution-arsenal-helm-values-template
@@ -33,29 +33,29 @@ components:
       # API Server Container Image
       - name: solution-arsenal-apiserver-image
         type: ociImage
-        version: v0.1.1
+        version: v0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/solar-apiserver:0.1.1
+          imageReference: ghcr.io/opendefensecloud/solar-apiserver:0.2.0
 
       # Controller Manager Container Image
       - name: solution-arsenal-controller-manager-image
         type: ociImage
-        version: v0.1.1
+        version: v0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/solar-controller-manager:0.1.1
+          imageReference: ghcr.io/opendefensecloud/solar-controller-manager:0.2.0
 
       # Renderer Container Image
       - name: solution-arsenal-renderer-image
         type: ociImage
-        version: 0.1.1
+        version: 0.2.0
         relation: external
         access:
           type: ociArtifact
-          imageReference: ghcr.io/opendefensecloud/solar-renderer:0.1.1
+          imageReference: ghcr.io/opendefensecloud/solar-renderer:0.2.0
 
       # etcd Container Image
       - name: etcd-image
