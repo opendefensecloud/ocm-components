@@ -1,5 +1,8 @@
 name: Release OCM Components
 
+permissions:
+  contents: read
+
 on:
   push:
     tags:
@@ -9,6 +12,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-24.04
     permissions:
+      contents: read # Checkout the repository
       packages: write # Push to ghcr.io
     strategy:
       matrix:
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up OCM CLI
         uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
