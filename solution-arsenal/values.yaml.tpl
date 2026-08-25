@@ -21,3 +21,9 @@ etcd:
   image:
     repository: {{ $etcd.Host }}/{{ $etcd.Repository }}
     tag: {{ $etcd.Tag }}
+
+{{- $ui := index .OCIResources "solution-arsenal-ui-image" }}
+ui:
+  image:
+    repository: {{ $ui.Host }}/{{ $ui.Repository }}
+    tag: {{ $ui.Tag }}

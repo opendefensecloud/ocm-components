@@ -57,6 +57,15 @@ components:
           type: ociArtifact
           imageReference: ghcr.io/opendefensecloud/solar-renderer:0.3.0
 
+      # Web UI (BFF + React SPA) Container Image
+      - name: solution-arsenal-ui-image
+        type: ociImage
+        version: v0.3.0
+        relation: external
+        access:
+          type: ociArtifact
+          imageReference: ghcr.io/opendefensecloud/solar-ui:0.3.0
+
       # etcd Container Image
       - name: etcd-image
         type: ociImage
