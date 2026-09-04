@@ -47,6 +47,11 @@ jobs:
 
       - name: Set up OCM CLI
         uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+        with:
+          # Match tools.lock (`ocm ocm.software/ocm@v0.42.0`) instead of the
+          # action's default of "latest", so CI cannot drift onto an
+          # incompatible CLI.
+          version: v0.42.0
 
       # Same step the release workflow runs, minus the push. Catches a broken
       # component-constructor.yaml or a missing local input file on the PR
