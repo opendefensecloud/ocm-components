@@ -1,0 +1,46 @@
+name: OSV-Scanner
+
+on:
+  pull_request:
+    branches: ["main"]
+  merge_group:
+    types: [checks_requested]
+  schedule:
+    - cron: "12 12 * * 1"
+  push:
+    branches: ["main"]
+
+# Least privilege by default. The write permission needed to upload the SARIF
+# report is granted per job, not here -- a top-level write permission is what
+# OpenSSF Scorecard's Token-Permissions check flags.
+permissions:
+  contents: read
+
+jobs:
+  scan-scheduled:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
+    permissions:
+      # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
+      actions: read
+      # Require writing security events to upload SARIF file to security tab
+      security-events: write
+      # Read commit contents
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2" # v2.3.8
+    with:
+      scan-args: |-
+        --include-git-root
+        -r
+        ./
+  scan-pr:
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@9a498708959aeaef5ef730655706c5a1df1edbc2" # v2.3.8
+    with:
+      scan-args: |-
+        --include-git-root
+        -r
+        ./

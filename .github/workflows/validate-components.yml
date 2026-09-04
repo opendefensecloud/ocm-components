@@ -1,0 +1,75 @@
+name: Validate OCM Components
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  discover:
+    name: Discover components
+    runs-on: ubuntu-24.04
+    outputs:
+      components: ${{ steps.find.outputs.components }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Derived from the tree rather than hard-coded, so a new component is
+      # covered by CI the moment it is added.
+      - name: Find component directories
+        id: find
+        run: |
+          components=$(find . -mindepth 2 -maxdepth 2 -name component-constructor.yaml \
+            -printf '%h\n' | sed 's|^\./||' | sort | jq -R -s -c 'split("\n")[:-1]')
+          echo "components=${components}" >> "$GITHUB_OUTPUT"
+          echo "Discovered: ${components}"
+
+  build:
+    name: Dry-build ${{ matrix.component }}
+    needs: discover
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJSON(needs.discover.outputs.components) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up OCM CLI
+        uses: open-component-model/ocm-setup-action@8c71929f38d3486e352e5d7aaf813f36accaaf43
+        with:
+          # Match tools.lock (`ocm ocm.software/ocm@v0.42.0`) instead of the
+          # action's default of "latest", so CI cannot drift onto an
+          # incompatible CLI.
+          version: v0.42.0
+
+      # Same step the release workflow runs, minus the push. Catches a broken
+      # component-constructor.yaml or a missing local input file on the PR
+      # instead of on the release tag.
+      #
+      # The matrix value is passed via working-directory rather than a `cd` in
+      # the script: the component list is derived from directory names in the
+      # PR's own tree, so interpolating it into shell source would let a
+      # directory named with shell syntax run commands on the runner.
+      - name: Build OCM component
+        working-directory: ${{ matrix.component }}
+        run: ocm add componentversion --version 0.0.0-ci --create --file ./ctf component-constructor.yaml
+
+      - name: Show component descriptor
+        working-directory: ${{ matrix.component }}
+        run: ocm get componentversion ./ctf -o yaml
+
+      - name: Clean up
+        if: always()
+        working-directory: ${{ matrix.component }}
+        run: rm -rf ./ctf
