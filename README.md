@@ -281,10 +281,10 @@ Components are released independently using semantic versioning:
 
 ## Licensing
 
-The packaging material in this repository — component descriptors
-(`component-constructor.yaml`), Helm values templates, ResourceGraphDefinition
-templates, bootstrap manifests, tests and documentation — is licensed under the
-Apache License, Version 2.0. See [LICENSE](LICENSE).
+The packaging material in this repository is licensed under the
+Apache License, Version 2.0. See [LICENSE](LICENSE). This includes component
+descriptors (`component-constructor.yaml`), Helm values templates,
+ResourceGraphDefinitions, bootstrap manifests, tests and documentation.
 
 Two things this does **not** cover:
 
