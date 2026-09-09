@@ -26,32 +26,13 @@ copies of upstream material and remain subject to their upstream licenses:
     Licensed under the Apache License, Version 2.0
 
 --------------------------------------------------------------------------------
-Upstream projects referenced by these components
+Upstream artifacts referenced by these components
 --------------------------------------------------------------------------------
 
 The component descriptors in this repository reference container images and Helm
-charts published by the projects below. Those artifacts are not stored in this
-repository; they are resolved from their upstream registries at build or transfer
-time and remain under their own licenses.
-
-  Alpine Linux         https://gitlab.alpinelinux.org/alpine          MIT (see below)
-  Argo Workflows       https://github.com/argoproj/argo-workflows      Apache-2.0
-  cert-manager         https://github.com/cert-manager/cert-manager    Apache-2.0
-  CloudNativePG        https://github.com/cloudnative-pg/cloudnative-pg  Apache-2.0
-  etcd                 https://github.com/etcd-io/etcd                 Apache-2.0
-  Flux                 https://github.com/fluxcd/flux2                 Apache-2.0
-  Keycloak             https://github.com/keycloak/keycloak            Apache-2.0
-  nginx (LinuxServer)  https://github.com/linuxserver/docker-nginx     GPL-3.0 (see below)
-  PostgreSQL           https://github.com/cloudnative-pg/postgres-containers  PostgreSQL License
-  Zot                  https://github.com/project-zot/zot              Apache-2.0
-
-Two of those need a word of explanation:
-
-  - The Alpine base image aggregates packages from the Alpine repositories, each
-    under its own license. MIT covers Alpine's own material, not the contents of
-    the image as a whole.
-  - GPL-3.0 is the license of LinuxServer.io's image build for nginx. nginx
-    itself is BSD-2-Clause; the image bundles both.
+charts published by third parties. Those artifacts are not stored here; they are
+resolved from their upstream registries at build or transfer time and remain under
+their own licenses, which the upstream projects state authoritatively.
 
 Note that transferring a component by value (for example
 `ocm transfer --copy-resources`) copies those upstream artifacts into the target
