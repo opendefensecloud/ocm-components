@@ -1,5 +1,7 @@
 # OCM Monorepo
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/opendefensecloud/ocm-components/badge)](https://scorecard.dev/viewer/?uri=github.com/opendefensecloud/ocm-components)
+
 A monorepo for packaging cloud-native applications as OCM (Open Component Model) components.
 
 ## Overview
@@ -277,9 +279,29 @@ Components are released independently using semantic versioning:
 - Each release includes an offline package (tar.gz) with all manifests and images
 - Checksums are provided for verification
 
-## License
+## Licensing
 
-Individual components retain their original licenses (typically Apache 2.0). See each component's README for specific license information.
+The packaging material in this repository is licensed under the
+Apache License, Version 2.0. See [LICENSE](LICENSE). This includes component
+descriptors (`component-constructor.yaml`), Helm values templates,
+ResourceGraphDefinitions, bootstrap manifests, tests and documentation.
+
+Two things this does **not** cover:
+
+- **Vendored upstream files.** A small number of files are copies of upstream
+  material and remain under their upstream licenses — currently the Keycloak
+  Operator manifests and CRDs under `keycloak/operator/`. These are listed in
+  [NOTICE](NOTICE).
+- **The artifacts the components reference.** Container images and Helm charts
+  are referenced by these components, not stored here; they are resolved from
+  their upstream registries and remain under their own licenses. Individual
+  components retain their original licenses (typically Apache 2.0) — see each
+  component's README.
+
+Note that transferring a component *by value* (for example
+`ocm transfer --copy-resources`) copies those upstream artifacts into the target
+registry or transport archive, so redistributing the result is subject to the
+licenses of the artifacts it carries.
 
 ## Resources
 

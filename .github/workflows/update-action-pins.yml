@@ -1,0 +1,36 @@
+name: Update Action Pins
+
+permissions:
+  contents: read
+
+# Deliberately unfiltered: a path filter would leave this check unreported on
+# PRs that touch no workflow, and an unreported check blocks merges forever if
+# it is ever made required. The job takes seconds.
+on:
+  pull_request:
+
+jobs:
+  check-pins:
+    name: Check action pins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify all actions are pinned to a SHA
+        run: |
+          # Strip quotes before matching so single- and double-quoted values are
+          # both handled, and allow any YAML sequence spacing: `-   uses:` is
+          # valid YAML, and a matcher expecting exactly one space would let an
+          # unpinned action through unseen.
+          unpinned=$(grep -rhE '^[[:space:]]*(-[[:space:]]+)?uses:' .github/workflows/ \
+            | tr -d "\"'" \
+            | grep -vE 'uses:[[:space:]]*\./' \
+            | grep -vE '@[0-9a-f]{40}([[:space:]]|$)' || true)
+          if [[ -n "$unpinned" ]]; then
+            echo "::error::Found unpinned GitHub Actions (must use SHA digest, not tag):"
+            echo "$unpinned"
+            echo ""
+            echo "Run 'GITHUB_TOKEN=\$(gh auth token) update-action-pins .github/workflows/' to fix."
+            exit 1
+          fi
