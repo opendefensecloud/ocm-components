@@ -12,7 +12,7 @@ on:
 jobs:
   discover:
     name: Discover components
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       components: ${{ steps.find.outputs.components }}
     steps:
@@ -34,7 +34,7 @@ jobs:
   build:
     name: Dry-build ${{ matrix.component }}
     needs: discover
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
